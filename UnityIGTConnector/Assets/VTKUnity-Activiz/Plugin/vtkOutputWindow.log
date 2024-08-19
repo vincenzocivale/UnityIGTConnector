@@ -1,0 +1,4 @@
+ERROR: In vtkOpenGLRenderWindow.cxx, line 704
+vtkExternalOpenGLRenderWindow (000002374FA71780): GLEW could not be initialized: Missing GL version
+
+
