@@ -193,39 +193,22 @@ public class OpenIGTLinkConnect : MonoBehaviour
 
         if (iImageInfo.NumPixX > 0 && iImageInfo.NumPixY > 0)
         {
-            // Determina il formato della texture basato su ScalarType
-            TextureFormat textureFormat;
-            int bytesPerPixel = 1;
+            // Calcola la dimensione attesa dell'immagine
+            int expectedImageSize = iImageInfo.NumPixX * iImageInfo.NumPixY;
 
-            switch (iImageInfo.ScalarType)
+            mediaTexture = new Texture2D(iImageInfo.NumPixX, iImageInfo.NumPixY, TextureFormat.Alpha8, false);
+
+            ImageDisplayMaterial = ImageDisplay.GetComponent<MeshRenderer>().material;
+
+            // Verifica che l'array di origine abbia abbastanza dati
+            if (iMSGbyteArray.Length < iImageInfo.OffsetBeforeImageContent + expectedImageSize)
             {
-                case 2: // int8
-                case 3: // uint8
-                    textureFormat = TextureFormat.Alpha8; // Per immagini in scala di grigi (1 byte per pixel)
-                    bytesPerPixel = 1;
-                    break;
-                case 4: // int16
-                case 5: // uint16
-                    textureFormat = TextureFormat.RG16; // Per immagini a colori a 16 bit per canale (2 byte per canale)
-                    bytesPerPixel = 2;
-                    break;
-                case 7: // uint32
-                    textureFormat = TextureFormat.RGBA32; // Per immagini a 32 bit per canale (4 byte per pixel)
-                    bytesPerPixel = 4;
-                    break;
-                case 10: // float32
-                    textureFormat = TextureFormat.RGBAFloat; // Per immagini a 32 bit floating point
-                    bytesPerPixel = 4;
-                    break;
-                default:
-                    UnityEngine.Debug.LogError("Unsupported Scalar Type: " + iImageInfo.ScalarType);
-                    return;
+                UnityEngine.Debug.LogError("L'array iMSGbyteArray non contiene abbastanza dati per l'immagine.");
+                return;
             }
 
-            mediaTexture = new Texture2D(iImageInfo.NumPixX, iImageInfo.NumPixY, textureFormat, false);
-
-            // Definire l'array che conterrà i pixel dell'immagine
-            byte[] bodyArray_iImData = new byte[iImageInfo.NumPixX * iImageInfo.NumPixY * bytesPerPixel];
+            // Define the array that will store the image's pixels
+            byte[] bodyArray_iImData = new byte[expectedImageSize];
             byte[] bodyArray_iImDataInv = new byte[bodyArray_iImData.Length];
 
             Buffer.BlockCopy(iMSGbyteArray, iImageInfo.OffsetBeforeImageContent, bodyArray_iImData, 0, bodyArray_iImData.Length);
@@ -235,13 +218,10 @@ public class OpenIGTLinkConnect : MonoBehaviour
             {
                 bodyArray_iImDataInv[i] = (byte)(255 - bodyArray_iImData[i]);
             }
-
-            // Carica i dati nella texture e applica
-            mediaTexture.LoadRawTextureData(bodyArray_iImData);
+            // Load the pixels into the texture and the material
+            mediaTexture.LoadRawTextureData(bodyArray_iImDataInv);
             mediaTexture.Apply();
 
-            // Assegna la texture al materiale
-            ImageDisplayMaterial = ImageDisplay.GetComponent<MeshRenderer>().material;
             ImageDisplayMaterial.mainTexture = mediaTexture;
         }
         else
@@ -371,10 +351,10 @@ public class OpenIGTLinkConnect : MonoBehaviour
         // Imposta il materiale
         meshRenderer.material = new Material(Shader.Find("Standard"));
 
-        // Aggiungi il componente ContinuousRotation
+        /*// Aggiungi il componente ContinuousRotation
         ContinuousRotation rotationScript = newObject.AddComponent<ContinuousRotation>();
-        rotationScript.rotationSpeed = 30f; // Imposta la velocità di rotazione desiderata
-
+        rotationScript.rotationSpeed = 30f; 
+*/
         return newObject;
     }
 

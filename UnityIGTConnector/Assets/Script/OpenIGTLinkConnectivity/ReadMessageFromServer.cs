@@ -206,17 +206,6 @@ public class ReadMessageFromServer
         polyDataInfo.SizeTriangleStrips = ReadUInt32(messageBytes, offset + 32);
         polyDataInfo.NumAttributes = ReadUInt32(messageBytes, offset + 36);
 
-/*        UnityEngine.Debug.Log($"Number of Points: {polyDataInfo.NumPoints}");
-        UnityEngine.Debug.Log($"Number of Vertices: {polyDataInfo.NumVertices}");
-        UnityEngine.Debug.Log($"Size of Vertices Data: {polyDataInfo.SizeVertices}");
-        UnityEngine.Debug.Log($"Number of Lines: {polyDataInfo.NumLines}");
-        UnityEngine.Debug.Log($"Size of Lines Data: {polyDataInfo.SizeLines}");
-        UnityEngine.Debug.Log($"Number of Polygons: {polyDataInfo.NumPolygons}");
-        UnityEngine.Debug.Log($"Size of Polygons Data: {polyDataInfo.SizePolygons}");
-        UnityEngine.Debug.Log($"Number of Triangle Strips: {polyDataInfo.NumTriangleStrips}");
-        UnityEngine.Debug.Log($"Size of Triangle Strips Data: {polyDataInfo.SizeTriangleStrips}");
-        UnityEngine.Debug.Log($"Number of Attributes: {polyDataInfo.NumAttributes}");*/
-
         offset += 40; // Avanza dopo la lettura dei campi standard
 
         // Leggi i punti
@@ -235,31 +224,6 @@ public class ReadMessageFromServer
         polyDataInfo.Lines = ReadUIntArray(messageBytes, polyDataInfo.SizeLines, ref offset);
         polyDataInfo.Polygons = ReadUIntArray(messageBytes, polyDataInfo.SizePolygons, ref offset);
         polyDataInfo.TriangleStrips = ReadUIntArray(messageBytes, polyDataInfo.SizeTriangleStrips, ref offset);
-
-/*        // Stampa le liste
-        UnityEngine.Debug.Log("Vertices:");
-        foreach (var vertex in polyDataInfo.Vertices)
-        {
-            UnityEngine.Debug.Log(vertex);
-        }
-
-        UnityEngine.Debug.Log("Lines:");
-        foreach (var line in polyDataInfo.Lines)
-        {
-            UnityEngine.Debug.Log(line);
-        }
-
-        UnityEngine.Debug.Log("Polygons:");
-        foreach (var polygon in polyDataInfo.Polygons)
-        {
-            UnityEngine.Debug.Log(polygon);
-        }
-
-        UnityEngine.Debug.Log("Triangle Strips:");
-        foreach (var strip in polyDataInfo.TriangleStrips)
-        {
-            UnityEngine.Debug.Log(strip);
-        }*/
 
         // Leggi l'header degli attributi usando la nuova funzione
         polyDataInfo.AttributeHeader = ReadAttributeHeader(messageBytes, ref offset, polyDataInfo.NumAttributes);
@@ -321,15 +285,15 @@ public class ReadMessageFromServer
     {
         AttributeHeader attributeHeader = new AttributeHeader(numAttributes);
 
-        UnityEngine.Debug.Log("Number of attributes is: " + numAttributes);
+        /*UnityEngine.Debug.Log("Number of attributes is: " + numAttributes);*/
 
         for (int i = 0; i < numAttributes; i++)
         {
             attributeHeader.TypeAttributes[i] = ReadUInt16(messageBytes, offset + i * 6);
             attributeHeader.NAttributes[i] = ReadUInt32(messageBytes, offset + i * 6 + 2);
-            UnityEngine.Debug.Log("Attribute type is: " + attributeHeader.GetAttributeType(i));
+            /*UnityEngine.Debug.Log("Attribute type is: " + attributeHeader.GetAttributeType(i));
             UnityEngine.Debug.Log("Attribute number of components is: " + attributeHeader.GetNumberOfComponents(i));
-            UnityEngine.Debug.Log("Number of components: " + attributeHeader.NAttributes[i]);
+            UnityEngine.Debug.Log("Number of components: " + attributeHeader.NAttributes[i]);*/
 
             offset += 6;
         }
