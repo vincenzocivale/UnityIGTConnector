@@ -29,22 +29,69 @@ public class ReadMessageFromServer
         public UInt16 ExtHeaderSize;
     }
 
-    // Read incoming message's header
-    public static HeaderInfo ReadHeaderInfo(byte[] messageBytes)
+    public static HeaderInfo ReadHeaderInfo(byte[] iMSGbyteArray)
     {
-        HeaderInfo header = new HeaderInfo
+        // Definisci la dimensione di ciascuna componente dell'header
+        byte[] byteArray_Version = new byte[2];
+        byte[] byteArray_MsgType = new byte[12];
+        byte[] byteArray_DeviceName = new byte[20];
+        byte[] byteArray_TimeStamp = new byte[8];
+        byte[] byteArray_BodySize = new byte[8];
+        byte[] byteArray_CRC = new byte[8];
+        byte[] byteArray_ExtHeaderSize = new byte[2];
+
+        // Definisci l'offset per saltare i byte necessari e raggiungere la variabile successiva
+        int version_SP = 0;
+        int msgType_SP = version_SP + byteArray_Version.Length;
+        int deviceName_SP = msgType_SP + byteArray_MsgType.Length;
+        int timeStamp_SP = deviceName_SP + byteArray_DeviceName.Length;
+        int bodySize_SP = timeStamp_SP + byteArray_TimeStamp.Length;
+        int crc_SP = bodySize_SP + byteArray_BodySize.Length;
+        int extHeaderSize_SP = crc_SP + byteArray_CRC.Length;
+
+        // Memorizza le informazioni nelle variabili
+        Buffer.BlockCopy(iMSGbyteArray, version_SP, byteArray_Version, 0, byteArray_Version.Length);
+        Buffer.BlockCopy(iMSGbyteArray, msgType_SP, byteArray_MsgType, 0, byteArray_MsgType.Length);
+        Buffer.BlockCopy(iMSGbyteArray, deviceName_SP, byteArray_DeviceName, 0, byteArray_DeviceName.Length);
+        Buffer.BlockCopy(iMSGbyteArray, timeStamp_SP, byteArray_TimeStamp, 0, byteArray_TimeStamp.Length);
+        Buffer.BlockCopy(iMSGbyteArray, bodySize_SP, byteArray_BodySize, 0, byteArray_BodySize.Length);
+        Buffer.BlockCopy(iMSGbyteArray, crc_SP, byteArray_CRC, 0, byteArray_CRC.Length);
+        Buffer.BlockCopy(iMSGbyteArray, extHeaderSize_SP, byteArray_ExtHeaderSize, 0, byteArray_ExtHeaderSize.Length);
+
+        // Se il messaggio è Little Endian, convertilo in Big Endian
+        if (BitConverter.IsLittleEndian)
         {
-            VersionNumber = ReadUInt16(messageBytes, 0),
-            MsgType = Encoding.ASCII.GetString(messageBytes, 2, 12),
-            DeviceName = Encoding.ASCII.GetString(messageBytes, 14, 20),
-            Timestamp = ReadUInt64(messageBytes, 34),
-            BodySize = ReadUInt64(messageBytes, 42),
-            Crc64 = ReadUInt64(messageBytes, 50),
-            ExtHeaderSize = ReadUInt16(messageBytes, 58)
+            Array.Reverse(byteArray_Version);
+            Array.Reverse(byteArray_TimeStamp);
+            Array.Reverse(byteArray_BodySize);
+            Array.Reverse(byteArray_CRC);
+            Array.Reverse(byteArray_ExtHeaderSize);
+        }
+
+        // Converte gli array di byte nel tipo di dati corrispondente
+        UInt16 versionNumber_iMSG = BitConverter.ToUInt16(byteArray_Version, 0);
+        string msgType_iMSG = Encoding.ASCII.GetString(byteArray_MsgType).TrimEnd('\0'); // Rimuove caratteri nulli
+        string deviceName_iMSG = Encoding.ASCII.GetString(byteArray_DeviceName).TrimEnd('\0'); // Rimuove caratteri nulli
+        UInt64 timestamp_iMSG = BitConverter.ToUInt64(byteArray_TimeStamp, 0);
+        UInt64 bodySize_iMSG = BitConverter.ToUInt64(byteArray_BodySize, 0);
+        UInt64 crc_iMSG = BitConverter.ToUInt64(byteArray_CRC, 0);
+        UInt16 extHeaderSize_iMSG = BitConverter.ToUInt16(byteArray_ExtHeaderSize, 0);
+
+        // Memorizza tutti i valori nella struttura HeaderInfo
+        HeaderInfo incomingHeaderInfo = new HeaderInfo
+        {
+            VersionNumber = versionNumber_iMSG,
+            MsgType = msgType_iMSG,
+            DeviceName = deviceName_iMSG,
+            Timestamp = timestamp_iMSG,
+            BodySize = bodySize_iMSG,
+            Crc64 = crc_iMSG,
+            ExtHeaderSize = extHeaderSize_iMSG
         };
 
-        return header;
+        return incomingHeaderInfo;
     }
+
 
     //////////////////////////////// INCOMING IMAGE MESSAGE ////////////////////////////////
     public struct ImageInfo
@@ -57,10 +104,18 @@ public class ReadMessageFromServer
         public UInt16 NumPixX;
         public UInt16 NumPixY;
         public UInt16 NumPixZ;
-        public float Xi, Yi, Zi;
-        public float Xj, Yj, Zj;
-        public float Xk, Yk, Zk;
-        public float CenterPosX, CenterPosY, CenterPosZ;
+        public float Xi;
+        public float Yi;
+        public float Zi;
+        public float Xj;
+        public float Yj;
+        public float Zj;
+        public float Xk;
+        public float Yk;
+        public float Zk;
+        public float CenterPosX;
+        public float CenterPosY;
+        public float CenterPosZ;
         public UInt16 StartingIndexSVX;
         public UInt16 StartingIndexSVY;
         public UInt16 StartingIndexSVZ;
@@ -71,41 +126,116 @@ public class ReadMessageFromServer
     }
 
     // Read incoming image's information
-    public static ImageInfo ReadImageInfo(byte[] messageBytes, uint headerSize, UInt16 extHeaderSize)
+    public static ImageInfo ReadImageInfo(byte[] iMSGbyteArrayComplete, uint headerSize, UInt16 extHeaderSize_iMSG)
     {
-        ImageInfo imageInfo = new ImageInfo();
-        int offset = (int)(headerSize + extHeaderSize - 2);
+        // Define the variables stored in the body of the message
+        int[] bodyArrayLengths = new int[] { 2, 1, 1, 1, 1, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 2 };
 
-        imageInfo.VersionNumber = ReadUInt16(messageBytes, offset);
-        imageInfo.ImComp = messageBytes[offset + 2];
-        imageInfo.ScalarType = messageBytes[offset + 3];
-        imageInfo.Endian = messageBytes[offset + 4];
-        imageInfo.ImCoord = messageBytes[offset + 5];
-        imageInfo.NumPixX = ReadUInt16(messageBytes, offset + 6);
-        imageInfo.NumPixY = ReadUInt16(messageBytes, offset + 8);
-        imageInfo.NumPixZ = ReadUInt16(messageBytes, offset + 10);
-        imageInfo.Xi = ReadFloat(messageBytes, offset + 12);
-        imageInfo.Yi = ReadFloat(messageBytes, offset + 16);
-        imageInfo.Zi = ReadFloat(messageBytes, offset + 20);
-        imageInfo.Xj = ReadFloat(messageBytes, offset + 24);
-        imageInfo.Yj = ReadFloat(messageBytes, offset + 28);
-        imageInfo.Zj = ReadFloat(messageBytes, offset + 32);
-        imageInfo.Xk = ReadFloat(messageBytes, offset + 36);
-        imageInfo.Yk = ReadFloat(messageBytes, offset + 40);
-        imageInfo.Zk = ReadFloat(messageBytes, offset + 44);
-        imageInfo.CenterPosX = ReadFloat(messageBytes, offset + 48);
-        imageInfo.CenterPosY = ReadFloat(messageBytes, offset + 52);
-        imageInfo.CenterPosZ = ReadFloat(messageBytes, offset + 56);
-        imageInfo.StartingIndexSVX = ReadUInt16(messageBytes, offset + 60);
-        imageInfo.StartingIndexSVY = ReadUInt16(messageBytes, offset + 62);
-        imageInfo.StartingIndexSVZ = ReadUInt16(messageBytes, offset + 64);
-        imageInfo.NumPixSVX = ReadUInt16(messageBytes, offset + 66);
-        imageInfo.NumPixSVY = ReadUInt16(messageBytes, offset + 68);
-        imageInfo.NumPixSVZ = ReadUInt16(messageBytes, offset + 70);
-        imageInfo.OffsetBeforeImageContent = offset;
+        ImageInfo incomingImageInfo = new ImageInfo();
 
-        return imageInfo;
+        int skipTheseBytes = (int)headerSize + (int)extHeaderSize_iMSG;
+
+        for (int index = 0; index < bodyArrayLengths.Length; index++)
+        {
+            byte[] sectionByteArray = new byte[bodyArrayLengths[index]];
+            Buffer.BlockCopy(iMSGbyteArrayComplete, skipTheseBytes, sectionByteArray, 0, bodyArrayLengths[index]);
+            skipTheseBytes += bodyArrayLengths[index];
+
+            if (BitConverter.IsLittleEndian && (bodyArrayLengths[index] > 1))
+            {
+                Array.Reverse(sectionByteArray);
+            }
+
+            switch (index)
+            {
+                case 0:
+                    incomingImageInfo.VersionNumber = BitConverter.ToUInt16(sectionByteArray, 0);
+                    break;
+                case 1:
+                    incomingImageInfo.ImComp = sectionByteArray[0];
+                    break;
+                case 2:
+                    incomingImageInfo.ScalarType = sectionByteArray[0];
+                    break;
+                case 3:
+                    incomingImageInfo.Endian = sectionByteArray[0];
+                    break;
+                case 4:
+                    incomingImageInfo.ImCoord = sectionByteArray[0];
+                    break;
+                case 5:
+                    incomingImageInfo.NumPixX = BitConverter.ToUInt16(sectionByteArray, 0);
+                    break;
+                case 6:
+                    incomingImageInfo.NumPixY = BitConverter.ToUInt16(sectionByteArray, 0);
+                    break;
+                case 7:
+                    incomingImageInfo.NumPixZ = BitConverter.ToUInt16(sectionByteArray, 0);
+                    break;
+                case 8:
+                    incomingImageInfo.Xi = BitConverter.ToSingle(sectionByteArray, 0);
+                    break;
+                case 9:
+                    incomingImageInfo.Yi = BitConverter.ToSingle(sectionByteArray, 0);
+                    break;
+                case 10:
+                    incomingImageInfo.Zi = BitConverter.ToSingle(sectionByteArray, 0);
+                    break;
+                case 11:
+                    incomingImageInfo.Xj = BitConverter.ToSingle(sectionByteArray, 0);
+                    break;
+                case 12:
+                    incomingImageInfo.Yj = BitConverter.ToSingle(sectionByteArray, 0);
+                    break;
+                case 13:
+                    incomingImageInfo.Zj = BitConverter.ToSingle(sectionByteArray, 0);
+                    break;
+                case 14:
+                    incomingImageInfo.Xk = BitConverter.ToSingle(sectionByteArray, 0);
+                    break;
+                case 15:
+                    incomingImageInfo.Yk = BitConverter.ToSingle(sectionByteArray, 0);
+                    break;
+                case 16:
+                    incomingImageInfo.Zk = BitConverter.ToSingle(sectionByteArray, 0);
+                    break;
+                case 17:
+                    incomingImageInfo.CenterPosX = BitConverter.ToSingle(sectionByteArray, 0);
+                    break;
+                case 18:
+                    incomingImageInfo.CenterPosY = BitConverter.ToSingle(sectionByteArray, 0);
+                    break;
+                case 19:
+                    incomingImageInfo.CenterPosZ = BitConverter.ToSingle(sectionByteArray, 0);
+                    break;
+                case 20:
+                    incomingImageInfo.StartingIndexSVX = BitConverter.ToUInt16(sectionByteArray, 0);
+                    break;
+                case 21:
+                    incomingImageInfo.StartingIndexSVY = BitConverter.ToUInt16(sectionByteArray, 0);
+                    break;
+                case 22:
+                    incomingImageInfo.StartingIndexSVZ = BitConverter.ToUInt16(sectionByteArray, 0);
+                    break;
+                case 23:
+                    incomingImageInfo.NumPixSVX = BitConverter.ToUInt16(sectionByteArray, 0);
+                    break;
+                case 24:
+                    incomingImageInfo.NumPixSVY = BitConverter.ToUInt16(sectionByteArray, 0);
+                    break;
+                case 25:
+                    incomingImageInfo.NumPixSVZ = BitConverter.ToUInt16(sectionByteArray, 0);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        incomingImageInfo.OffsetBeforeImageContent = skipTheseBytes;
+
+        return incomingImageInfo;
     }
+
 
     //////////////////////////////// INCOMING TRANSFORM MESSAGE ////////////////////////////////
     // Extract transform information

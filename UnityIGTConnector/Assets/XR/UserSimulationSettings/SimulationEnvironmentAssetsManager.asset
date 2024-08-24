@@ -1,17 +1,3 @@
-%YAML 1.1
-%TAG !u! tag:unity3d.com,2011:
---- !u!114 &11400000
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 378fb4eec0f59ac4c95c0d5b227aa85e, type: 3}
-  m_Name: SimulationEnvironmentAssetsManager
-  m_EditorClassIdentifier: 
-  m_EnvironmentPrefabPaths:
-  - Packages/com.unity.xr.arfoundation/Assets/Prefabs/DefaultSimulationEnvironment.prefab
-  m_FallbackAtEndOfList: 1
+version https://git-lfs.github.com/spec/v1
+oid sha256:9858e8e517a53e1ab07977c98586378e341e8040b102b54602072a3d7a6b9faf
+size 568

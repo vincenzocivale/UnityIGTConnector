@@ -150,7 +150,7 @@ public class OpenIGTLinkConnect : MonoBehaviour
                         UnityEngine.Debug.Log("Image recived");
 
                         // Read and display the image content to our preview plane
-                        DisplayImageInfo(iMSGbyteArray, iHeaderInfo, ImageDisplay);
+                        Display3DImage(iMSGbyteArray, iHeaderInfo);
                         UnityEngine.Debug.Log("Image displayed");
                     }
                     else if ((iHeaderInfo.MsgType).Contains("POLYDATA"))
@@ -187,46 +187,204 @@ public class OpenIGTLinkConnect : MonoBehaviour
     }
 
     //////////////////////////////// INCOMING IMAGE MESSAGE ////////////////////////////////
-    void DisplayImageInfo(byte[] iMSGbyteArray, ReadMessageFromServer.HeaderInfo iHeaderInfo, GameObject ImageDisplay)
+
+
+    public static Color[] ExtractImageColors(byte[] iMSGbyteArrayComplete, ReadMessageFromServer.ImageInfo imageInfo)
     {
+        // Calcola il numero totale di pixel nella sub-volume
+        int totalPixels = imageInfo.NumPixSVX * imageInfo.NumPixSVY * imageInfo.NumPixSVZ;
+
+        // Calcola il numero di componenti per pixel (es. 3 per RGB)
+        int numComponents = imageInfo.ImComp;
+
+        // Determina il numero di byte per ogni valore scalare in base al tipo di dato
+        int bytesPerScalar = imageInfo.ScalarType switch
+        {
+            2 => 1,  // int8
+            3 => 1,  // uint8
+            4 => 2,  // int16
+            5 => 2,  // uint16
+            6 => 4,  // int32
+            7 => 4,  // uint32
+            10 => 4, // float32
+            11 => 8, // float64
+            _ => throw new Exception("ScalarType non supportato")
+        };
+
+        // Calcola il numero totale di byte necessari per l'immagine
+        int imageDataSize = totalPixels * numComponents * bytesPerScalar;
+
+        // Estrai l'array di dati immagine a partire dall'offset calcolato in ImageInfo
+        byte[] imageData = new byte[imageDataSize];
+        Buffer.BlockCopy(iMSGbyteArrayComplete, imageInfo.OffsetBeforeImageContent, imageData, 0, imageDataSize);
+
+        // Creazione dell'array di colori
+        Color[] colors = new Color[totalPixels];
+        int index = 0;
+
+        for (int i = 0; i < totalPixels; i++)
+        {
+            float r = 0f, g = 0f, b = 0f, a = 1f; // Imposta a 1f per predefinire alpha (se necessario)
+
+            if (numComponents >= 1)
+                r = ConvertScalarToFloat(imageData, index, bytesPerScalar, imageInfo.ScalarType);
+            if (numComponents >= 2)
+                g = ConvertScalarToFloat(imageData, index + bytesPerScalar, bytesPerScalar, imageInfo.ScalarType);
+            if (numComponents >= 3)
+                b = ConvertScalarToFloat(imageData, index + 2 * bytesPerScalar, bytesPerScalar, imageInfo.ScalarType);
+            if (numComponents == 4)
+                a = ConvertScalarToFloat(imageData, index + 3 * bytesPerScalar, bytesPerScalar, imageInfo.ScalarType);
+
+            colors[i] = new Color(r, g, b, a);
+            index += numComponents * bytesPerScalar;
+        }
+
+        return colors;
+    }
+
+    private static float ConvertScalarToFloat(byte[] data, int startIndex, int bytesPerScalar, int scalarType)
+    {
+        switch (scalarType)
+        {
+            case 2: // int8
+                return (float)data[startIndex] / 127f;
+            case 3: // uint8
+                return (float)data[startIndex] / 255f;
+            case 4: // int16
+                return (float)BitConverter.ToInt16(data, startIndex) / 255.0f;
+            case 5: // uint16
+                return (float)BitConverter.ToUInt16(data, startIndex) / 255.0f;
+            case 6: // int32
+                return (float)BitConverter.ToInt32(data, startIndex) / 255.0f;
+            case 7: // uint32
+                return (float)BitConverter.ToUInt32(data, startIndex) / 255.0f;
+            case 10: // float32
+                return BitConverter.ToSingle(data, startIndex);
+            case 11: // float64
+                return (float)BitConverter.ToDouble(data, startIndex);
+            default:
+                throw new Exception("ScalarType non supportato");
+        }
+    }
+
+    static TextureFormat DetermineTextureFormat(int scalarType, int imComp)
+    {
+
+
+        switch (scalarType)
+        {
+            case 2: // int8
+            case 3: // uint8
+                return imComp switch
+                {
+                    1 => TextureFormat.R8,
+                    2 => TextureFormat.RG16,  // RG8 non è supportato da Unity, quindi passiamo a RG16
+                    3 => TextureFormat.RGB24,
+                    4 => TextureFormat.RGBA32,
+                    _ => throw new Exception("Numero di componenti non supportato")
+                };
+            case 4:
+                return imComp switch
+                {
+                    1 => TextureFormat.R16,
+                    2 => TextureFormat.RG16,
+                    4 => TextureFormat.RGBAHalf, // RGBA16 non esiste, quindi RGBAHalf è la migliore approssimazione
+                    _ => throw new Exception("Numero di componenti non supportato")
+                };
+            case 5: // uint16
+                return imComp switch
+                {
+                    1 => TextureFormat.R16,
+                    2 => TextureFormat.RG16,
+                    4 => TextureFormat.RGBAHalf, // RGBA16 non esiste, quindi RGBAHalf è la migliore approssimazione
+                    _ => throw new Exception("Numero di componenti non supportato")
+                };
+            case 6: // int32
+            case 7: // uint32
+            case 10: // float32
+                return imComp switch
+                {
+                    1 => TextureFormat.RFloat,
+                    2 => TextureFormat.RGFloat,
+                    4 => TextureFormat.RGBAFloat,
+                    _ => throw new Exception("Numero di componenti non supportato")
+                };
+            case 11: // float64
+                     // Richiede conversione a float32 prima della creazione della texture
+                throw new Exception("float64 non supportato direttamente. Convertire a float32");
+            default:
+                throw new Exception("ScalarType non supportato");
+        }
+    }
+
+
+    static Texture3D CreateTexture3D(byte[] iMSGbyteArray, ReadMessageFromServer.ImageInfo iImageInfo)
+    {
+        // Set the texture parameters
+        int width = iImageInfo.NumPixX;
+        int height = iImageInfo.NumPixY;
+        int depth = iImageInfo.NumPixZ;
+
+        // Determina il formato della texture
+        TextureFormat format = DetermineTextureFormat(iImageInfo.ScalarType, iImageInfo.ImComp);
+
+        TextureWrapMode wrapMode = TextureWrapMode.Clamp;
+
+        // Create the texture and apply the parameters
+        Texture3D texture = new Texture3D(width, height, depth, format, false);
+        texture.wrapMode = wrapMode;
+        texture.filterMode = FilterMode.Bilinear;
+        texture.anisoLevel = 0;
+
+        // Estrai i colori dall'immagine
+        Color[] colors = ExtractImageColors(iMSGbyteArray, iImageInfo);
+
+        // Copy the color values to the texture
+        texture.SetPixels(colors);
+
+        // Apply the changes to the texture and upload the updated texture to the GPU
+        texture.Apply();
+
+        return texture;
+    }
+
+
+
+    void Display3DImage(byte[] iMSGbyteArray, ReadMessageFromServer.HeaderInfo iHeaderInfo)
+    {
+        // Leggi le informazioni sull'immagine
         ReadMessageFromServer.ImageInfo iImageInfo = ReadMessageFromServer.ReadImageInfo(iMSGbyteArray, headerSize, iHeaderInfo.ExtHeaderSize);
 
-        if (iImageInfo.NumPixX > 0 && iImageInfo.NumPixY > 0)
+        if (iImageInfo.NumPixX > 0 && iImageInfo.NumPixY > 0 && iImageInfo.NumPixZ > 0)
         {
-            // Calcola la dimensione attesa dell'immagine
-            int expectedImageSize = iImageInfo.NumPixX * iImageInfo.NumPixY;
+            Texture3D texture = CreateTexture3D(iMSGbyteArray, iImageInfo);
 
-            mediaTexture = new Texture2D(iImageInfo.NumPixX, iImageInfo.NumPixY, TextureFormat.Alpha8, false);
+            GameObject volumeRenderingGO = GameObject.Find("VolumeRendering");
 
-            ImageDisplayMaterial = ImageDisplay.GetComponent<MeshRenderer>().material;
-
-            // Verifica che l'array di origine abbia abbastanza dati
-            if (iMSGbyteArray.Length < iImageInfo.OffsetBeforeImageContent + expectedImageSize)
+            if (volumeRenderingGO != null)
             {
-                UnityEngine.Debug.LogError("L'array iMSGbyteArray non contiene abbastanza dati per l'immagine.");
-                return;
+                // Accedi allo script VolumeRendering attaccato al GameObject
+                VolumeRendering.VolumeRendering volumeRenderingScript = volumeRenderingGO.GetComponent<VolumeRendering.VolumeRendering>();
+
+                if (volumeRenderingScript != null)
+                {
+                    // Aggiorna la texture 3D utilizzando il metodo SetVolume
+                    volumeRenderingScript.SetVolumeTexture(texture);
+                }
+                else
+                {
+                    UnityEngine.Debug.LogError("Il componente VolumeRendering non è stato trovato sul GameObject.");
+                }
+            }
+            else
+            {
+                UnityEngine.Debug.LogError("Il GameObject 'VolumeRendering' non è stato trovato nella scena.");
             }
 
-            // Define the array that will store the image's pixels
-            byte[] bodyArray_iImData = new byte[expectedImageSize];
-            byte[] bodyArray_iImDataInv = new byte[bodyArray_iImData.Length];
-
-            Buffer.BlockCopy(iMSGbyteArray, iImageInfo.OffsetBeforeImageContent, bodyArray_iImData, 0, bodyArray_iImData.Length);
-
-            // Invert the values of the pixels to have a dark background
-            for (int i = 0; i < bodyArray_iImData.Length; i++)
-            {
-                bodyArray_iImDataInv[i] = (byte)(255 - bodyArray_iImData[i]);
-            }
-            // Load the pixels into the texture and the material
-            mediaTexture.LoadRawTextureData(bodyArray_iImDataInv);
-            mediaTexture.Apply();
-
-            ImageDisplayMaterial.mainTexture = mediaTexture;
         }
         else
         {
-            UnityEngine.Debug.Log("Void image");
+            UnityEngine.Debug.LogError("Dimensioni dell'immagine non valide.");
         }
     }
 
