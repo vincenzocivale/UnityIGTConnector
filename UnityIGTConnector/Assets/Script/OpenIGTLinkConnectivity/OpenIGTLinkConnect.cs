@@ -187,60 +187,64 @@ public class OpenIGTLinkConnect : MonoBehaviour
     }
 
     //////////////////////////////// INCOMING IMAGE MESSAGE ////////////////////////////////
-
-
     public static Color[] ExtractImageColors(byte[] iMSGbyteArrayComplete, ReadMessageFromServer.ImageInfo imageInfo)
     {
-        // Calcola il numero totale di pixel nella sub-volume
         int totalPixels = imageInfo.NumPixSVX * imageInfo.NumPixSVY * imageInfo.NumPixSVZ;
-
-        // Calcola il numero di componenti per pixel (es. 3 per RGB)
         int numComponents = imageInfo.ImComp;
-
-        // Determina il numero di byte per ogni valore scalare in base al tipo di dato
         int bytesPerScalar = imageInfo.ScalarType switch
         {
-            2 => 1,  // int8
-            3 => 1,  // uint8
-            4 => 2,  // int16
-            5 => 2,  // uint16
-            6 => 4,  // int32
-            7 => 4,  // uint32
-            10 => 4, // float32
-            11 => 8, // float64
+            2 => 1,
+            3 => 1,
+            4 => 2,
+            5 => 2,
+            6 => 4,
+            7 => 4,
+            10 => 4,
+            11 => 8,
             _ => throw new Exception("ScalarType non supportato")
         };
-
-        // Calcola il numero totale di byte necessari per l'immagine
         int imageDataSize = totalPixels * numComponents * bytesPerScalar;
 
-        // Estrai l'array di dati immagine a partire dall'offset calcolato in ImageInfo
         byte[] imageData = new byte[imageDataSize];
         Buffer.BlockCopy(iMSGbyteArrayComplete, imageInfo.OffsetBeforeImageContent, imageData, 0, imageDataSize);
 
-        // Creazione dell'array di colori
         Color[] colors = new Color[totalPixels];
         int index = 0;
 
-        for (int i = 0; i < totalPixels; i++)
+        // Calcolo delle dimensioni della sub-volume per gli indici
+        int width = imageInfo.NumPixSVX;
+        int height = imageInfo.NumPixSVY;
+        int depth = imageInfo.NumPixSVZ;
+
+        for (int z = 0; z < depth; z++)
         {
-            float r = 0f, g = 0f, b = 0f, a = 1f; // Imposta a 1f per predefinire alpha (se necessario)
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    float r = 0f, g = 0f, b = 0f, a = 1f;
 
-            if (numComponents >= 1)
-                r = ConvertScalarToFloat(imageData, index, bytesPerScalar, imageInfo.ScalarType);
-            if (numComponents >= 2)
-                g = ConvertScalarToFloat(imageData, index + bytesPerScalar, bytesPerScalar, imageInfo.ScalarType);
-            if (numComponents >= 3)
-                b = ConvertScalarToFloat(imageData, index + 2 * bytesPerScalar, bytesPerScalar, imageInfo.ScalarType);
-            if (numComponents == 4)
-                a = ConvertScalarToFloat(imageData, index + 3 * bytesPerScalar, bytesPerScalar, imageInfo.ScalarType);
+                    if (numComponents >= 1)
+                        r = ConvertScalarToFloat(imageData, index, bytesPerScalar, imageInfo.ScalarType);
+                    if (numComponents >= 2)
+                        g = ConvertScalarToFloat(imageData, index + bytesPerScalar, bytesPerScalar, imageInfo.ScalarType);
+                    if (numComponents >= 3)
+                        b = ConvertScalarToFloat(imageData, index + 2 * bytesPerScalar, bytesPerScalar, imageInfo.ScalarType);
+                    if (numComponents == 4)
+                        a = ConvertScalarToFloat(imageData, index + 3 * bytesPerScalar, bytesPerScalar, imageInfo.ScalarType);
 
-            colors[i] = new Color(r, g, b, a);
-            index += numComponents * bytesPerScalar;
+                    // Indice per l'array di colori considerando l'inversione dell'asse Y
+                    int flippedIndex = x + (height - 1 - y) * width + z * width * height;
+                    colors[flippedIndex] = new Color(r, g, b, a);
+
+                    index += numComponents * bytesPerScalar;
+                }
+            }
         }
 
         return colors;
     }
+
 
     private static float ConvertScalarToFloat(byte[] data, int startIndex, int bytesPerScalar, int scalarType)
     {
