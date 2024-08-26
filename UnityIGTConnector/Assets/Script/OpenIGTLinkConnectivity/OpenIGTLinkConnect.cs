@@ -1,7 +1,4 @@
-﻿// This code is based on the one provided in: https://github.com/franklinwk/OpenIGTLink-Unity
-// Modified by Alicia Pose Díez de la Lastra, from Universidad Carlos III de Madrid
-
-// OpenIGTLinkConnect: Gestisce la connessione e la comunicazione con 3D Slicer via OpenIGTLink.
+﻿// OpenIGTLinkConnect: Gestisce la connessione e la comunicazione con 3D Slicer via OpenIGTLink.
 // Start: Configura il CRC e le texture.
 // OnConnectToSlicerClick e ConnectToSlicer: Gestiscono la connessione a Slicer.
 // SendTransformInfo e ListenSlicerInfo: Gestiscono l'invio e la ricezione di messaggi.
@@ -69,18 +66,6 @@ public class OpenIGTLinkConnect : MonoBehaviour
         crcGenerator = new CRC64();
         crcPolynomial = Convert.ToUInt64(crcPolynomialBinary, 2);
         crcGenerator.Init(crcPolynomial);
-
-        // Initialize texture parameters for image transfer of the moving plane
-        /*movingPlane.transform.localScale = Vector3.Scale(transform.localScale, new Vector3(movingPlane.transform.localScale.x, -movingPlane.transform.localScale.y, movingPlane.transform.localScale.z));
-        mediaMaterial = movingPlane.GetComponent<MeshRenderer>().material;
-        mediaTexture = new Texture2D(512, 512, TextureFormat.Alpha8, false);
-        mediaMaterial.mainTexture = mediaTexture;*/
-
-        // Initialize texture parameters for image transfer of the fix plane
-        /*fixPlane = GameObject.Find("FixedImagePlane").transform.Find("FixPlane").gameObject;
-        fixPlane.transform.localScale = Vector3.Scale(transform.localScale, new Vector3(fixPlane.transform.localScale.x, -fixPlane.transform.localScale.y, fixPlane.transform.localScale.z));
-        fixPlaneMaterial = fixPlane.GetComponent<MeshRenderer>().material;
-        fixPlaneMaterial.mainTexture = mediaTexture;*/
     }
 
     // This function is called when the user activates the connectivity switch to start the communication with 3D Slicer
@@ -374,6 +359,7 @@ public class OpenIGTLinkConnect : MonoBehaviour
                 {
                     // Aggiorna la texture 3D utilizzando il metodo SetVolume
                     volumeRenderingScript.SetVolumeTexture(texture);
+
                 }
                 else
                 {
