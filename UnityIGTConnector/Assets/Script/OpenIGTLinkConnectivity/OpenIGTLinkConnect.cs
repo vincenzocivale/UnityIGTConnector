@@ -19,6 +19,8 @@ using System.Runtime;
 
 using Microsoft.MixedReality.Toolkit.UI;
 using System.Diagnostics;
+using static System.Net.Mime.MediaTypeNames;
+using UnityVolumeRendering;
 
 
 public class OpenIGTLinkConnect : MonoBehaviour
@@ -135,7 +137,7 @@ public class OpenIGTLinkConnect : MonoBehaviour
                         UnityEngine.Debug.Log("Image recived");
 
                         // Read and display the image content to our preview plane
-                        Display3DImage(iMSGbyteArray, iHeaderInfo);
+                        OnOpenIGTDatasetResultAsync(iMSGbyteArray, iHeaderInfo);
                         UnityEngine.Debug.Log("Image displayed");
                     }
                     else if ((iHeaderInfo.MsgType).Contains("POLYDATA"))
@@ -227,6 +229,9 @@ public class OpenIGTLinkConnect : MonoBehaviour
             }
         }
 
+        // Salva l'array di colori in un file binario
+        SaveColorsToBinaryFile(colors, "ExtractedColors.bin");
+
         return colors;
     }
 
@@ -258,8 +263,6 @@ public class OpenIGTLinkConnect : MonoBehaviour
 
     static TextureFormat DetermineTextureFormat(int scalarType, int imComp)
     {
-
-
         switch (scalarType)
         {
             case 2: // int8
@@ -337,6 +340,22 @@ public class OpenIGTLinkConnect : MonoBehaviour
         return texture;
     }
 
+    // Metodo per salvare l'array di colori in un file binario
+    private static void SaveColorsToBinaryFile(Color[] colors, string fileName)
+    {
+        using (BinaryWriter writer = new BinaryWriter(File.Open(Path.Combine(UnityEngine.Application.persistentDataPath, fileName), FileMode.Create)))
+        {
+            writer.Write(colors.Length);  // Scrivi la lunghezza dell'array
+            foreach (var color in colors)
+            {
+                writer.Write(color.r);
+                writer.Write(color.g);
+                writer.Write(color.b);
+                writer.Write(color.a);
+            }
+        }
+    }
+
 
 
     void Display3DImage(byte[] iMSGbyteArray, ReadMessageFromServer.HeaderInfo iHeaderInfo)
@@ -371,6 +390,28 @@ public class OpenIGTLinkConnect : MonoBehaviour
                 UnityEngine.Debug.LogError("Il GameObject 'VolumeRendering' non è stato trovato nella scena.");
             }
 
+        }
+        else
+        {
+            UnityEngine.Debug.LogError("Dimensioni dell'immagine non valide.");
+        }
+    }
+
+    private async void OnOpenIGTDatasetResultAsync(byte[] iMSGbyteArray, ReadMessageFromServer.HeaderInfo iHeaderInfo)
+    {
+        // Leggi le informazioni sull'immagine
+        ReadMessageFromServer.ImageInfo iImageInfo = ReadMessageFromServer.ReadImageInfo(iMSGbyteArray, headerSize, iHeaderInfo.ExtHeaderSize);
+
+        if (iImageInfo.NumPixX > 0 && iImageInfo.NumPixY > 0 && iImageInfo.NumPixZ > 0)
+        {
+            // Import the dataset
+            OpenIGTImporter importer = new OpenIGTImporter(iMSGbyteArray, iImageInfo);
+            VolumeDataset dataset = importer.Import(iMSGbyteArray, iImageInfo);
+            // Spawn the object
+            if (dataset != null)
+            {
+                VolumeObjectFactory.CreateObject(dataset);
+            }
         }
         else
         {
