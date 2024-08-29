@@ -41,7 +41,7 @@ public class ConnectToSlicer : MonoBehaviour
             Debug.Log("Successfully connected to Slicer.");
 
             listeningRoutine = StartCoroutine(connectToServer.ListenSlicerInfo());
-            sendingRoutine = StartCoroutine(connectToServer.SendTransformInfo());
+            sendingRoutine = StartCoroutine(connectToServer.SendSlicerInfo());
         }
         else
         {

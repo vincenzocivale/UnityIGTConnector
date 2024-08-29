@@ -1,7 +1,7 @@
 ﻿// OpenIGTLinkConnect: Gestisce la connessione e la comunicazione con 3D Slicer via OpenIGTLink.
 // Start: Configura il CRC e le texture.
 // OnConnectToSlicerClick e ConnectToSlicer: Gestiscono la connessione a Slicer.
-// SendTransformInfo e ListenSlicerInfo: Gestiscono l'invio e la ricezione di messaggi.
+// SendSlicerInfo e ListenSlicerInfo: Gestiscono l'invio e la ricezione di messaggi.
 // ApplyTransformToGameObject e ApplyImageInfo: Applicano trasformazioni e immagini agli oggetti di gioco.
 
 using UnityEngine;
@@ -25,6 +25,8 @@ using UnityVolumeRendering;
 
 public class OpenIGTLinkConnect : MonoBehaviour
 {
+    private MessageTracker messageTracker;
+
     ///////// CONNECT TO 3D SLICER PARAMETERS /////////
     uint headerSize = 58; // Size of the header of every OpenIGTLink message
     private SocketHandler socketForUnityAndHoloLens; // Socket to connect to Slicer
@@ -38,7 +40,7 @@ public class OpenIGTLinkConnect : MonoBehaviour
     
        
     ///////// SEND /////////
-    /*public List<ModelInfo> infoToSend; // Array of Models to send to Slicer*/
+    
     
     /// CRC ECMA-182 to send messages to Slicer ///
     CRC64 crcGenerator;
@@ -50,12 +52,6 @@ public class OpenIGTLinkConnect : MonoBehaviour
     ///////// LISTEN /////////
 
     /// Image transfer information ///
-    /*[HideInInspector] public GameObject movingPlane; // Plane to display image on
-    Material mediaMaterial; // Material of the plane*/
-    
-
-    /*GameObject fixPlane; // Fix plane to display image on
-    Material fixPlaneMaterial; // Material of the plane*/
 
     public GameObject ImageDisplay;
     Texture2D mediaTexture; // Texture of the plane
@@ -68,6 +64,14 @@ public class OpenIGTLinkConnect : MonoBehaviour
         crcGenerator = new CRC64();
         crcPolynomial = Convert.ToUInt64(crcPolynomialBinary, 2);
         crcGenerator.Init(crcPolynomial);
+
+        // Ottieni il componente MessageTracker dallo stesso GameObject
+        messageTracker = GetComponent<MessageTracker>();
+
+        if (messageTracker == null)
+        {
+            UnityEngine.Debug.LogError("MessageTracker component not found on this GameObject.");
+        }
     }
 
     // This function is called when the user activates the connectivity switch to start the communication with 3D Slicer
@@ -89,18 +93,28 @@ public class OpenIGTLinkConnect : MonoBehaviour
     }
 
     // Routine that continuously sends the transform information of every model in infoToSend to 3D Slicer
-    public IEnumerator SendTransformInfo()
+    public IEnumerator SendSlicerInfo()
     {
+
         while (true)
         {
-            /*UnityEngine.Debug.Log("Sending...");*/
             yield return null; // If you had written yield return new WaitForSeconds(1); it would have waited 1 second before executing the code below.
-            // Loop foreach element in infoToSend
-            /*foreach (ModelInfo element in infoToSend)
+
+            Dictionary<GameObject, string> changedObjects = messageTracker.CheckForChanges();
+
+            // Itera su ciascun elemento del dizionario
+            foreach (KeyValuePair<GameObject, string> entry in changedObjects)
             {
-                SendMessageToServer.SendTransformMessage(element, scaleMultiplier, crcGenerator, CRC, socketForUnityAndHoloLens);
-            }*/
+                GameObject modelGO = entry.Key; // Accesso al GameObject
+                string messageType = entry.Value; // Accesso al tipo di messaggio
+
+                SendMessageToServer.SendMessage(modelGO, scaleMultiplier, crcGenerator, socketForUnityAndHoloLens, messageType);
+
+                UnityEngine.Debug.Log("Send");
+            }
+
         }
+
     }
 
     public IEnumerator ListenSlicerInfo()
@@ -546,13 +560,4 @@ public class OpenIGTLinkConnect : MonoBehaviour
 */
         return newObject;
     }
-
-    
-
-
-
-
-
-
-
 }

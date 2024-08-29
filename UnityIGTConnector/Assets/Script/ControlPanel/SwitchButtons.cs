@@ -172,7 +172,7 @@ public class SwitchButtons : MonoBehaviour
             imageVisibility_Switch.IsEnabled = true;
             imageVisibility_Switch.IsToggled = true;
             listeningRoutine = StartCoroutine(connectToServer.ListenSlicerInfo());
-            sendingRoutine = StartCoroutine(connectToServer.SendTransformInfo());
+            sendingRoutine = StartCoroutine(connectToServer.SendSlicerInfo());
             mobileImageGO.SetActive(true);
         }
         // If the connection is unsuccesful, keep things as they were
