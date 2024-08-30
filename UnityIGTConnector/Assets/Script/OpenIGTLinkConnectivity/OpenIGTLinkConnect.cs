@@ -108,7 +108,7 @@ public class OpenIGTLinkConnect : MonoBehaviour
                 GameObject modelGO = entry.Key; // Accesso al GameObject
                 string messageType = entry.Value; // Accesso al tipo di messaggio
 
-                SendMessageToServer.SendMessage(modelGO, scaleMultiplier, crcGenerator, socketForUnityAndHoloLens, messageType);
+                SendMessageServer.SendMessage(modelGO, scaleMultiplier, crcGenerator, socketForUnityAndHoloLens, messageType);
 
                 UnityEngine.Debug.Log("Send");
             }
