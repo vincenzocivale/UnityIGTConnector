@@ -162,6 +162,12 @@ public class OpenIGTLinkConnect : MonoBehaviour
                         // Create a GameObject from the POLYDATA
                         CreateGameObjectFromPolyData(polyDataInfo);
                     }
+                    else if ((iHeaderInfo.MsgType).Contains("STRING"))
+                    {
+                        // Extract POLYDATA information from the message
+                        ReadMessageFromServer.StringInfo stringInfo = ReadMessageFromServer.ReadStringInfo(iMSGbyteArray, headerSize, iHeaderInfo.ExtHeaderSize);
+                        UnityEngine.Debug.Log("String recived: " + stringInfo.text);
+                    }
                 }
             }
         }

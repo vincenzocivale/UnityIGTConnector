@@ -214,8 +214,18 @@ class IGTLink4DStreamLogic(ScriptedLoadableModuleLogic):
 
         if not inputSequence:
             raise ValueError("Input sequence is invalid")
+        
+        textNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTextNode")
+        textNode.SetName("MyTextNode")
+        textNode.SetText("Questo è un esempio di testo")
+
+        # Aggiungere il nodo stringa alla scena
+        slicer.mrmlScene.AddNode(textNode)
+        
 
         cnode = slicer.mrmlScene.GetFirstNodeByName("IGTLConnector")
+
+        cnode.RegisterOutgoingMRMLNode(textNode)
 
         if cnode is None:
             raise ValueError("IGTLConnector node not found")

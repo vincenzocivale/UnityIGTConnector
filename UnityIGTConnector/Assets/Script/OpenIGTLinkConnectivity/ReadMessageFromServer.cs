@@ -257,7 +257,53 @@ public class ReadMessageFromServer
         return matrix;
     }
 
-    //////////////////////////////// INCOMING POLYDATA MESSAGE ////////////////////////////////
+    //////////////////////////////// INCOMING STRING MESSAGE ////////////////////////////////
+    
+    public struct StringInfo
+    {
+        public ushort encoding;
+        public ushort length;
+        public byte[] data;
+        public string text;
+    }
+
+    public static StringInfo ReadStringInfo(byte[] messageBytes, uint headerSize, UInt16 extHeaderSize)
+    {
+        StringInfo stringInfo = new StringInfo();
+        int offset = (int)(headerSize + extHeaderSize);
+
+        stringInfo.encoding = ReadUInt16(messageBytes, offset);
+        stringInfo.length = ReadUInt16(messageBytes, offset + 2);
+
+        stringInfo.data = new byte[stringInfo.length];
+
+        Buffer.BlockCopy(messageBytes, offset + 4, stringInfo.data, 0, stringInfo.length);
+
+
+        // Reference: https://www.iana.org/assignments/character-sets/character-sets.xhtml
+        switch (stringInfo.encoding)
+        {
+            case 1:
+                stringInfo.text = Encoding.ASCII.GetString(stringInfo.data); // da ricontrollare
+                break;
+            case 3:
+                stringInfo.text = Encoding.ASCII.GetString(stringInfo.data);
+                break;
+            case 106:
+                stringInfo.text = Encoding.UTF8.GetString(stringInfo.data);
+                break;
+            default:
+                UnityEngine.Debug.LogError("Text format not implemented: " + stringInfo.encoding);
+                stringInfo.text = null;
+                break;
+        }
+
+        return stringInfo;
+    }
+
+
+
+    ///////////////////////////////// INCOMING POLYDATA MESSAGE ////////////////////////////////
     public struct PolyDataInfo
     {
         public uint NumPoints;
