@@ -214,29 +214,36 @@ class IGTLink4DStreamLogic(ScriptedLoadableModuleLogic):
 
         if not inputSequence:
             raise ValueError("Input sequence is invalid")
-        
+
         textNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTextNode")
         textNode.SetName("MyTextNode")
         textNode.SetText("Questo è un esempio di testo")
 
         # Aggiungere il nodo stringa alla scena
         slicer.mrmlScene.AddNode(textNode)
-        
 
+        # Trova il nodo del connettore OpenIGTLink
         cnode = slicer.mrmlScene.GetFirstNodeByName("IGTLConnector")
-
-        cnode.RegisterOutgoingMRMLNode(textNode)
-
         if cnode is None:
             raise ValueError("IGTLConnector node not found")
 
-        #cnode.Start()
+        # Registra il nodo di testo come uscita
+        cnode.RegisterOutgoingMRMLNode(textNode)
+
+        # Trova il nodo di segmentazione denominato "Segmentation"
+        segmentationNode = slicer.mrmlScene.GetFirstNodeByName("Segmentation")
+        if not segmentationNode:
+            raise ValueError("Nodo di segmentazione 'Segmentation' non trovato nella scena.")
+
+        # Specifica il segmento che vuoi usare (Segment_2)
+        segmentID = "Segment_2"
 
         startTime = time.time()
         logging.info("Processing started")
 
         numberOfVolumes = inputSequence.GetNumberOfDataNodes()
         print(f"Numero di volumi: {numberOfVolumes}")
+
         for i in range(numberOfVolumes):
             volume_node = inputSequence.GetNthDataNode(i)
             if not volume_node:
@@ -251,18 +258,38 @@ class IGTLink4DStreamLogic(ScriptedLoadableModuleLogic):
             if not slicer.mrmlScene.GetNodeByID(volume_node.GetID()):
                 slicer.mrmlScene.AddNode(volume_node)
 
-            # Imposta il volume per la visualizzazione nella finestra 3D
-            slicer.util.setSliceViewerLayers(background=volume_node, fit=True)
+            # Crea un volume mascherato utilizzando il segmento selezionato
+            # Usa un nodo di tipo vtkMRMLLabelMapVolumeNode
+            maskedVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode",
+                                                                  nodeName + "_Segment_2_masked")
 
-            # Registra il nodo come uscita verso il connettore OpenIGTLink
-            cnode.RegisterOutgoingMRMLNode(volume_node)
+            # Esporta il segmento come volume mascherato
+            slicer.modules.segmentations.logic().ExportSegmentsToLabelmapNode(
+                segmentationNode, [segmentID], maskedVolumeNode, volume_node
+            )
+
+            # Converti il LabelMapVolumeNode in un ScalarVolumeNode
+            scalarVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode",
+                                                                  nodeName + "_Segment_2_scalar")
+            slicer.modules.volumes.logic().CreateScalarVolumeFromVolume(slicer.mrmlScene, scalarVolumeNode,
+                                                                        maskedVolumeNode)
+
+            # Verifica se il volume scalar è stato creato correttamente
+            if scalarVolumeNode:
+                print(f"Volume scalar {scalarVolumeNode.GetName()} creato con successo.")
+
+                # Imposta il volume per la visualizzazione nella finestra 3D (opzionale)
+                slicer.util.setSliceViewerLayers(background=scalarVolumeNode, fit=True)
+
+                # Registra il nodo convertito come uscita verso il connettore OpenIGTLink
+                cnode.RegisterOutgoingMRMLNode(scalarVolumeNode)
+            else:
+                print(f"Errore: Impossibile creare il volume scalar per il segmento {segmentID}.")
 
         stopTime = time.time()
-        logging.info(f"Processing completed in {stopTime-startTime:.2f} seconds")
+        logging.info(f"Processing completed in {stopTime - startTime:.2f} seconds")
 
 
-
-#
 # IGTLink4DStreamTest
 #
 
