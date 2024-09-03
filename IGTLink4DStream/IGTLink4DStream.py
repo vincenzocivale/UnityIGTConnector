@@ -2,7 +2,7 @@ import logging
 import os
 from typing import Annotated, Optional, List
 import time
-
+import numpy as np
 import vtk
 
 import slicer
@@ -14,7 +14,6 @@ from slicer.parameterNodeWrapper import (
     parameterNodeWrapper,
     WithinRange,
 )
-
 
 
 #
@@ -33,7 +32,8 @@ class IGTLink4DStream(ScriptedLoadableModule):
         # TODO: set categories (folders where the module shows up in the module selector)
         self.parent.categories = [translate("qSlicerAbstractCoreModule", "Examples")]
         self.parent.dependencies = []  # TODO: add here list of module names that this module requires
-        self.parent.contributors = ["John Doe (AnyWare Corp.)"]  # TODO: replace with "Firstname Lastname (Organization)"
+        self.parent.contributors = [
+            "John Doe (AnyWare Corp.)"]  # TODO: replace with "Firstname Lastname (Organization)"
         # TODO: update with short description of the module and a link to online module documentation
         # _() function marks text as translatable to other languages
         self.parent.helpText = _("""
@@ -113,6 +113,7 @@ class IGTLink4DStreamParameterNode:
 
     inputSequence: slicer.vtkMRMLSequenceNode
 
+
 #
 # IGTLink4DStreamWidget
 #
@@ -121,7 +122,7 @@ class IGTLink4DStreamWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def __init__(self, parent=None) -> None:
         ScriptedLoadableModuleWidget.__init__(self, parent)
         VTKObservationMixin.__init__(self)
-        self.logic = None 
+        self.logic = None
         self._parameterNode = None
         self._parameterNodeGuiTag = None
 
@@ -161,7 +162,6 @@ class IGTLink4DStreamWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Aggiorna lo stato del pulsante Apply quando la selezione cambia
         self.ui.sequenceSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateApplyButtonState)
 
-
     def initializeParameterNode(self) -> None:
         """Assicura che il nodo dei parametri esista e sia osservato."""
         self.setParameterNode(self.logic.getParameterNode())
@@ -190,8 +190,6 @@ class IGTLink4DStreamWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.logic.process(inputSequence)
 
 
-
-
 #
 # IGTLink4DStreamLogic
 #
@@ -205,6 +203,27 @@ class IGTLink4DStreamLogic(ScriptedLoadableModuleLogic):
 
     def getParameterNode(self):
         return IGTLink4DStreamParameterNode(super().getParameterNode())
+
+    def create_masked_volume(self,input_volume_node, output_volume_name, lower_threshold, upper_threshold):
+
+        # Assicurati che i nodi di input siano del tipo Volume
+        if input_volume_node.GetClassName() != 'vtkMRMLScalarVolumeNode' :
+            raise TypeError("I nodi di input devono essere un volume e una mappa di etichette.")
+
+        # Crea un nuovo nodo di maschera  per l'output
+        output_volume_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLLabelMapVolumeNode', output_volume_name)
+
+        # Convertili in array NumPy per elaborare i dati
+        input_array = slicer.util.arrayFromVolume(input_volume_node)
+
+        # Applica la maschera con threshold
+        masked_array = np.where( (input_array >= lower_threshold) & (input_array <= upper_threshold),
+                                input_array, 0)
+
+        # Copia i dati mascherati nell'array NumPy nel volume di output
+        slicer.util.updateVolumeFromArray(output_volume_node, masked_array)
+
+        return output_volume_node
 
     def process(self, inputSequence: slicer.vtkMRMLSequenceNode) -> None:
         """
@@ -260,13 +279,9 @@ class IGTLink4DStreamLogic(ScriptedLoadableModuleLogic):
 
             # Crea un volume mascherato utilizzando il segmento selezionato
             # Usa un nodo di tipo vtkMRMLLabelMapVolumeNode
-            maskedVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode",
-                                                                  nodeName + "_Segment_2_masked")
 
-            # Esporta il segmento come volume mascherato
-            slicer.modules.segmentations.logic().ExportSegmentsToLabelmapNode(
-                segmentationNode, [segmentID], maskedVolumeNode, volume_node
-            )
+            maskedVolumeNode = self.create_masked_volume(volume_node, nodeName + "_Segment_2_masked", 200, 1000)
+
 
             # Converti il LabelMapVolumeNode in un ScalarVolumeNode
             scalarVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode",
@@ -310,4 +325,3 @@ class IGTLink4DStreamTest(ScriptedLoadableModuleTest):
         self.setUp()
         self.test_IGTLink4DStream1()
 
-    
