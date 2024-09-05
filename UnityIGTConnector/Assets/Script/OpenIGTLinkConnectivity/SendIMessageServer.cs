@@ -16,7 +16,7 @@ public class SendMessageServer : MonoBehaviour
     public static void SendMessage(GameObject modelGO, int scaleMultiplier, CRC64 crcGenerator, SocketHandler socketForUnityAndHoloLens, string messageType)
         {
             string modelName = modelGO.name;
-            string deviceName = modelName + "_T";
+            string deviceName = modelName ;
             string oigtlVersion = "0002";
             string body = "";
             ulong timestamp = 0;
@@ -31,6 +31,10 @@ public class SendMessageServer : MonoBehaviour
                     body = CreateImage2DBody(modelGO);
                     break;
 
+                case "STRING":
+                    body = CreateStringBody(modelGO);
+                    break;
+
                 default:
                     UnityEngine.Debug.LogError($"Send message type not supported: {messageType}");
                     break;
@@ -39,11 +43,8 @@ public class SendMessageServer : MonoBehaviour
             string[] md_keyNames = { "ModelName" };
             string[] md_keyValues = { modelName };
 
-            // Crea il metadata
-            string hexMetaBody = CreateMetadata(md_keyNames, md_keyValues);
-
-            // Crea l'extended header utilizzando la lunghezza del metadata header e del metadata body
-            string hexExtHeader = CreateExtendedHeader(md_keyNames.Length * 8, hexMetaBody.Length / 2);  // 8 byte per ogni metaheader (KEY_SIZE + VALUE_ENCODING + VALUE_SIZE)
+            // Crea il metadata e l'extended header utilizzando la lunghezza del metadata header e del metadata body
+            (string hexMetaBody, string hexExtHeader) = CreateMetadata(md_keyNames, md_keyValues);
 
             // Corpo del messaggio (combinazione di extended header, body e metadata)
             string bodyHex = hexExtHeader + body + hexMetaBody;
@@ -52,7 +53,7 @@ public class SendMessageServer : MonoBehaviour
             string hexHeader = CreateHeader(oigtlVersion, messageType, deviceName, timestamp, bodyHex);
 
             // Crea il CRC per il messaggio completo (header + body)
-            string crcHex = CreateCRC(hexHeader + bodyHex, crcGenerator);
+            string crcHex = CreateCRC(bodyHex, crcGenerator);
 
             // Combina l'header, il CRC e il corpo del messaggio
             string completeMsg = hexHeader + crcHex + bodyHex;
@@ -94,72 +95,103 @@ public class SendMessageServer : MonoBehaviour
         }
 
     public static string CreateImage2DBody(GameObject modelGO)
+    {
+        Renderer renderer = modelGO.GetComponent<Renderer>();
+        Material material = renderer?.material;
+        Texture2D texture = material?.mainTexture as Texture2D;
+
+        texture = ConvertToSupportedFormat(texture);
+
+        UInt16 version = Convert.ToUInt16(2);
+        byte[] versionBytes = BitConverter.GetBytes(version);
+        if (BitConverter.IsLittleEndian)
         {
-
-            Renderer renderer = modelGO.GetComponent<Renderer>();
-            Material material = renderer?.material;
-            Texture2D texture = material?.mainTexture as Texture2D;
-
-            texture = ConvertToSupportedFormat(texture);
-
-            // Valori messi di default 
-            string imageCoord = "RAS";
-            float[] px_py_pz = { 0.0f, 0.0f, 0.0f };
-            ushort[] di_dj_dk = { 0, 0, 0 };
-
-            // Recupera le informazioni sull'immagine
-            int width = texture.width;
-            int height = texture.height;
-            byte numComponents = GetImageFormatInfo(texture).numComponents;
-            byte scalarType = GetImageFormatInfo(texture).scalarType;
-            byte endian = BitConverter.IsLittleEndian ? (byte)2 : (byte)1;  // Determinazione dell'endianess
-            byte imageCoordByte = (byte)(imageCoord == "RAS" ? 1 : 2); // 1: RAS, 2: LPS
-
-            // Dimensioni dell'immagine
-            ushort[] ri_rj_rk = { (ushort)width, (ushort)height, 1 };
-
-            // Vettori trasversali e normali
-            float[] tx_ty_tz = { 1.0f, 0.0f, 0.0f }; // Pixel size in millimeter (x-direction)
-            float[] sx_sy_sz = { 0.0f, 1.0f, 0.0f }; // Pixel size in millimeter (y-direction)
-            float[] nx_ny_nz = { 0.0f, 0.0f, 1.0f }; // Pixel size in millimeter or slice thickness (z-direction)
-
-            ushort[] dri_drj_drk = { (ushort)width, (ushort)height, 1 };
-
-            // Creazione dell'header dell'immagine
-            List<byte> imageHeader = new List<byte>();
-
-            imageHeader.AddRange(BitConverter.GetBytes((ushort)2)); // Versione
-            imageHeader.Add(numComponents);
-            imageHeader.Add(scalarType);
-            imageHeader.Add(endian);
-            imageHeader.Add(imageCoordByte);
-
-            foreach (ushort val in ri_rj_rk) imageHeader.AddRange(BitConverter.GetBytes(val));
-            foreach (float val in tx_ty_tz) imageHeader.AddRange(BitConverter.GetBytes(val));
-            foreach (float val in sx_sy_sz) imageHeader.AddRange(BitConverter.GetBytes(val));
-            foreach (float val in nx_ny_nz) imageHeader.AddRange(BitConverter.GetBytes(val));
-            foreach (float val in px_py_pz) imageHeader.AddRange(BitConverter.GetBytes(val));
-            foreach (ushort val in di_dj_dk) imageHeader.AddRange(BitConverter.GetBytes(val));
-            foreach (ushort val in dri_drj_drk) imageHeader.AddRange(BitConverter.GetBytes(val));
-
-            // Immagine in formato binario (dati dell'immagine)
-            byte[] imageData = texture.EncodeToPNG(); // Converti l'immagine in un array di byte PNG
-
-            // Calcolo della dimensione dell'immagine in byte
-            string hexBodySize = (imageHeader.Count + imageData.Length).ToString("X").PadLeft(16, '0');
-
-            // Costruzione del messaggio completo
-            string messageInHex = BitConverter.ToString(imageHeader.ToArray()).Replace("-", "") +
-                                  BitConverter.ToString(imageData).Replace("-", "");
-
-            return messageInHex;
+            Array.Reverse(versionBytes);
         }
 
-    
+        byte numComponents = GetImageFormatInfo(texture).numComponents;
+        byte scalarType = GetImageFormatInfo(texture).scalarType;
+        byte endian = 1;  // BIG endian
+        byte imageCoord = 1; //RAS
 
-    
+        string versionString = BitConverter.ToString(versionBytes).Replace("-", "");
+        string numComponentsString = numComponents.ToString("X16"); 
+        string scalarTyepString = scalarType.ToString("X16");
+        string edianString = endian.ToString("X16");  
 
-    public static string CreateMetadata(string[] md_keyNames, string[] md_keyValues)
+        // Recupera le informazioni sull'immagine
+        UInt16 width = Convert.ToUInt16(texture.width);
+        UInt16 height = Convert.ToUInt16(texture.height);
+        UInt16 depth = Convert.ToUInt16(1);
+
+        string r_vector = UInt16ArrayBytesString(new UInt16[] { width, height, depth });
+        string t_vector = FloatArrayBytesString(new float[] { 1.0f, 0.0f, 0.0f });
+        string n_vector = FloatArrayBytesString(new float[] { 0.0f, 0.0f, 1.0f });
+        string p_vector = FloatArrayBytesString(new float[] { 0.0f, 0.0f, 0.0f });
+        string d_vector = UInt16ArrayBytesString(new UInt16[] { 0, 0, 0 });
+        string dr_vector = UInt16ArrayBytesString(new UInt16[] { width, height, depth });
+
+
+        byte[] imageData = texture.EncodeToPNG(); // Converti l'immagine in un array di byte PNG
+
+        if (imageData == null || imageData.Length == 0)
+        {
+            UnityEngine.Debug.LogError("Failed to encode image to PNG format.");
+            return null;
+        }
+
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(imageData);
+        }
+        string imageDataString = BitConverter.ToString(imageData).Replace("-", "");
+
+        return versionString + numComponentsString + scalarTyepString + edianString + r_vector + t_vector + n_vector + p_vector + d_vector + dr_vector + imageDataString;
+
+    }
+
+    public static string CreateStringBody(GameObject modelGO)
+    {
+        LinkManager linkManager = modelGO.GetComponent<LinkManager>();
+        string messageContent = linkManager.stringMessage;
+
+        // Verifica che il messaggio non sia vuoto
+        if (string.IsNullOrEmpty(messageContent))
+        {
+            Debug.LogError("Il contenuto del messaggio è vuoto.");
+            return "";
+        }
+
+        // Usa US-ASCII (MIBenum = 3)
+        UInt16 encodingValue_UINT16 = Convert.ToUInt16(3); // US-ASCII
+
+        // Ottieni il messaggio codificato in ASCII
+        byte[] encodedBytes = Encoding.ASCII.GetBytes(messageContent);
+
+        // Lunghezza della stringa
+        UInt16 messageLength_UINT16 = Convert.ToUInt16(encodedBytes.Length);
+
+        // Converto i campi ENCODING e LENGTH in byte[] e li inverto se Little Endian
+        byte[] value_encoding_BYTES = BitConverter.GetBytes(encodingValue_UINT16);
+        byte[] messageLength_BYTES = BitConverter.GetBytes(messageLength_UINT16);
+
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(value_encoding_BYTES);
+            Array.Reverse(messageLength_BYTES);
+        }
+
+        // Converto tutto in stringa esadecimale
+        string ENCODING = BitConverter.ToString(value_encoding_BYTES).Replace("-", "");
+        string LENGTH = BitConverter.ToString(messageLength_BYTES).Replace("-", "");
+        string CONTENT = BitConverter.ToString(encodedBytes).Replace("-", "");
+
+        // Combino i campi ENCODING, LENGTH e CONTENT
+        return ENCODING + LENGTH + CONTENT;
+    }
+
+
+    public static (string, string) CreateMetadata(string[] md_keyNames, string[] md_keyValues)
     {
         // Controlla che il numero di chiavi e valori corrisponda
         if (md_keyNames.Length != md_keyValues.Length)
@@ -218,45 +250,43 @@ public class SendMessageServer : MonoBehaviour
         // Combina il metaheader e il metadato in un'unica stringa esadecimale
         string hexMetaBody = INDEX_COUNT + META_HEADER + META_DATA;
 
-        return hexMetaBody;
+        // Creo l'extended header in base ai dai meta
+        string hexExtHeader = CreateExtendedHeader(INDEX_COUNT, META_HEADER, META_DATA);
+
+        return (hexMetaBody, hexExtHeader);
     }
 
-    public static string CreateExtendedHeader(int metadataHeaderLength, int metadataBodyLength)
+    public static string CreateExtendedHeader(string INDEX_COUNT, string META_HEADER, string META_DATA)
+    {
+        // Convert values to the corresponding variable type
+        UInt16 extHeaderSize_UINT16 = Convert.ToUInt16(12);
+        UInt16 metadataHeaderSize_UINT16 = Convert.ToUInt16((INDEX_COUNT.Length + META_HEADER.Length) / 2);
+        UInt32 metadataSize_UINT32 = Convert.ToUInt32(META_DATA.Length / 2);
+        UInt32 msgID_UINT32 = Convert.ToUInt32(0);
+
+        // Convert these variables into byte[]
+        byte[] extHeaderSize_BYTES = BitConverter.GetBytes(extHeaderSize_UINT16);
+        byte[] metadataHeaderSize_BYTES = BitConverter.GetBytes(metadataHeaderSize_UINT16);
+        byte[] metadataSize_BYTES = BitConverter.GetBytes(metadataSize_UINT32);
+        byte[] msgID_BYTES = BitConverter.GetBytes(msgID_UINT32);
+        if (BitConverter.IsLittleEndian)
         {
-            // Dimensione fissa per l'extended header (12 byte)
-            UInt16 extHeaderSize_UINT16 = Convert.ToUInt16(12);
-
-            // Calcola le dimensioni del metadata header e del metadata body
-            UInt16 metadataHeaderSize_UINT16 = Convert.ToUInt16(metadataHeaderLength);
-            UInt32 metadataSize_UINT32 = Convert.ToUInt32(metadataBodyLength);
-
-            // ID del messaggio (fissato a 0)
-            UInt32 msgID_UINT32 = Convert.ToUInt32(0);
-
-            // Converti i valori in byte[]
-            byte[] extHeaderSize_BYTES = BitConverter.GetBytes(extHeaderSize_UINT16);
-            byte[] metadataHeaderSize_BYTES = BitConverter.GetBytes(metadataHeaderSize_UINT16);
-            byte[] metadataSize_BYTES = BitConverter.GetBytes(metadataSize_UINT32);
-            byte[] msgID_BYTES = BitConverter.GetBytes(msgID_UINT32);
-            if (BitConverter.IsLittleEndian)
-            {
-                Array.Reverse(extHeaderSize_BYTES);
-                Array.Reverse(metadataHeaderSize_BYTES);
-                Array.Reverse(metadataSize_BYTES);
-                Array.Reverse(msgID_BYTES);
-            }
-
-            // Converti i byte[] in stringhe esadecimali
-            string EXT_HEADER_SIZE = BitConverter.ToString(extHeaderSize_BYTES).Replace("-", "");
-            string METADATA_HEADER_SIZE = BitConverter.ToString(metadataHeaderSize_BYTES).Replace("-", "");
-            string METADATA_SIZE = BitConverter.ToString(metadataSize_BYTES).Replace("-", "");
-            string MSG_ID = BitConverter.ToString(msgID_BYTES).Replace("-", "");
-
-            // Combina le parti per creare l'extended header
-            string hexExtHeader = EXT_HEADER_SIZE + METADATA_HEADER_SIZE + METADATA_SIZE + MSG_ID;
-
-            return hexExtHeader;
+            Array.Reverse(extHeaderSize_BYTES);
+            Array.Reverse(metadataHeaderSize_BYTES);
+            Array.Reverse(metadataSize_BYTES);
+            Array.Reverse(msgID_BYTES);
         }
+        // Convert the byte[] into hexadecimal strings
+        string EXT_HEADER_SIZE = BitConverter.ToString(extHeaderSize_BYTES).Replace("-", "");
+        string METADATA_HEADER_SIZE = BitConverter.ToString(metadataHeaderSize_BYTES).Replace("-", "");
+        string METADATA_SIZE = BitConverter.ToString(metadataSize_BYTES).Replace("-", "");
+        string MSG_ID = BitConverter.ToString(msgID_BYTES).Replace("-", "");
+
+        // Create final extended header
+        string hexExtHeader = EXT_HEADER_SIZE + METADATA_HEADER_SIZE + METADATA_SIZE + MSG_ID;
+
+        return hexExtHeader;
+    }
 
 
     public static string CreateHeader(string version, string messageType, string deviceName, ulong timestamp, string bodyHex)
@@ -279,11 +309,10 @@ public class SendMessageServer : MonoBehaviour
         string timeStampHex = BitConverter.ToString(timestampBytes).Replace("-", "");
 
         // Dimensione del corpo del messaggio in esadecimale (8 byte, rappresentato come UInt64)
-        ulong bodySize = Convert.ToUInt64(bodyHex.Length / 2);  // Dividi per 2 perché ogni coppia di caratteri rappresenta un byte
-        string bodySizeHex = bodySize.ToString("X16");
+        string bodySize = (bodyHex.Length / 2).ToString("X16");
 
         // Combina tutti i componenti per creare l'header
-        string hexHeader = oigtlVersion + messageTypeHex + deviceNameHex + timeStampHex + bodySizeHex;
+        string hexHeader = oigtlVersion + messageTypeHex + deviceNameHex + timeStampHex + bodySize;
 
         return hexHeader;
     }
@@ -434,6 +463,35 @@ public class SendMessageServer : MonoBehaviour
         return newTexture;
     }
 
+    private static string UInt16ArrayBytesString(UInt16[] values)
+    {
+        List<string> stringArray = new List<string>();
+        foreach (var value in values)
+        {
+            byte[] valueBytes = BitConverter.GetBytes(value);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(valueBytes);
+            }
+            stringArray.Add(BitConverter.ToString(valueBytes).Replace("-", ""));
+        }
+        return string.Join("", stringArray);
+    }
+
+    private static string FloatArrayBytesString(float[] values)
+    {
+        List<string> stringArray = new List<string>();
+        foreach (var value in values)
+        {
+            byte[] valueBytes = BitConverter.GetBytes(value);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(valueBytes);
+            }
+            stringArray.Add(BitConverter.ToString(valueBytes).Replace("-", ""));
+        }
+        return string.Join("", stringArray);
+    }
 
 }
 

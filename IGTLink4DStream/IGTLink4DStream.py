@@ -234,28 +234,17 @@ class IGTLink4DStreamLogic(ScriptedLoadableModuleLogic):
         if not inputSequence:
             raise ValueError("Input sequence is invalid")
 
-        textNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTextNode")
-        textNode.SetName("MyTextNode")
-        textNode.SetText("Questo è un esempio di testo")
-
-        # Aggiungere il nodo stringa alla scena
-        slicer.mrmlScene.AddNode(textNode)
 
         # Trova il nodo del connettore OpenIGTLink
         cnode = slicer.mrmlScene.GetFirstNodeByName("IGTLConnector")
         if cnode is None:
             raise ValueError("IGTLConnector node not found")
 
-        # Registra il nodo di testo come uscita
-        cnode.RegisterOutgoingMRMLNode(textNode)
 
         # Trova il nodo di segmentazione denominato "Segmentation"
         segmentationNode = slicer.mrmlScene.GetFirstNodeByName("Segmentation")
         if not segmentationNode:
             raise ValueError("Nodo di segmentazione 'Segmentation' non trovato nella scena.")
-
-        # Specifica il segmento che vuoi usare (Segment_2)
-        segmentID = "Segment_2"
 
         startTime = time.time()
         logging.info("Processing started")
@@ -271,8 +260,6 @@ class IGTLink4DStreamLogic(ScriptedLoadableModuleLogic):
 
             nodeName = volume_node.GetName()
             nodeType = volume_node.GetClassName()
-            print(f"Nodo {i}: {nodeName} (Tipo: {nodeType})")
-
             # Assicurati che il volume sia caricato nella scena
             if not slicer.mrmlScene.GetNodeByID(volume_node.GetID()):
                 slicer.mrmlScene.AddNode(volume_node)
@@ -299,7 +286,7 @@ class IGTLink4DStreamLogic(ScriptedLoadableModuleLogic):
                 # Registra il nodo convertito come uscita verso il connettore OpenIGTLink
                 cnode.RegisterOutgoingMRMLNode(scalarVolumeNode)
             else:
-                print(f"Errore: Impossibile creare il volume scalar per il segmento {segmentID}.")
+                print(f"Errore: Impossibile creare il volume scalar per il segmento.")
 
         stopTime = time.time()
         logging.info(f"Processing completed in {stopTime - startTime:.2f} seconds")

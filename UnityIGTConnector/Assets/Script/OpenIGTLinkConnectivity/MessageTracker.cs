@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using openDicom.Registry;
 
 public class MessageTracker : MonoBehaviour
 {
@@ -13,8 +14,10 @@ public class MessageTracker : MonoBehaviour
     public List<GameObjectMessageTypePair> gameObjectMessageTypePairs = new List<GameObjectMessageTypePair>();
 
     private Dictionary<GameObject, string> gameObjectMessageTypes = new Dictionary<GameObject, string>();
+
     private Dictionary<GameObject, TransformState> lastTransformStates = new Dictionary<GameObject, TransformState>();
     private Dictionary<GameObject, Texture2D> lastTextureStates = new Dictionary<GameObject, Texture2D>();
+    private Dictionary<GameObject, string> lastStringStates = new Dictionary<GameObject, string>();
 
     private void Start()
     {
@@ -43,6 +46,14 @@ public class MessageTracker : MonoBehaviour
                     lastTextureStates[modelGO] = null;
                 }
             }
+            else if (messageType == "STRING")
+            {
+                LinkManager linkManager = modelGO.GetComponent<LinkManager>(); 
+                if (linkManager != null && linkManager.stringMessage != null)
+                {
+                    lastStringStates[modelGO] = null; 
+                }
+            }
         }
     }
 
@@ -60,7 +71,7 @@ public class MessageTracker : MonoBehaviour
                 TransformState currentState = new TransformState(modelGO.transform.position, modelGO.transform.rotation);
                 if (!currentState.Equals(lastTransformStates[modelGO]))
                 {
-                    changedObjects.Add(modelGO, messageType);
+                    changedObjects.Add(modelGO, "TRANSFORM");
                     lastTransformStates[modelGO] = currentState;  // Aggiorna lo stato salvato
                 }
             }
@@ -71,9 +82,19 @@ public class MessageTracker : MonoBehaviour
                 {
                     if (HasTextureChanged(lastTextureStates[modelGO], currentTexture))
                     {
-                        changedObjects.Add(modelGO, messageType);
+                        changedObjects.Add(modelGO, "IMAGE");
                         lastTextureStates[modelGO] = currentTexture;  // Aggiorna lo stato salvato
                     }
+                }
+            }
+            else if (messageType == "STRING")
+            {
+                LinkManager linkManager = modelGO.GetComponent<LinkManager>();
+                string currentString = linkManager.stringMessage;
+                if ( currentString != lastStringStates[modelGO])
+                {
+                    changedObjects.Add(modelGO, "STRING");
+                    lastStringStates[modelGO] = currentString;
                 }
             }
         }
