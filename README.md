@@ -1,8 +1,6 @@
-Here's the updated README with the official links you provided:
 
----
 
-**UnityIGTConnector**  
+### **UnityIGTConnector**  
 This repository contains the implementation of the [OpenIGTLink](https://openigtlink.org/) communication protocol within Unity. This integration enables the reception and transmission of [HEADER](https://openigtlink.org/developers/spec), [TRANSFORM](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/transform.md), [IMAGE](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/image.md), [POLYDATA](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/polydata.md), and TEXT messages within the Unity scene, unlocking new possibilities for mixed reality applications in the medical field.
 
 ### Overview  
