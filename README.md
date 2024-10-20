@@ -13,19 +13,6 @@ Integrating OpenIGTLink into Unity offers the following benefits:
 - **Interoperability**: Facilitates communication between different platforms and devices used in medical environments.
 - **Advanced Visualization**: Leverages Unity's graphical capabilities to represent complex medical data in a mixed reality environment.
 
-### Features
-
-- Reception and transmission of OpenIGTLink messages in Unity
-- Support for message types:
-  - **[TRANSFORM](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/transform.md)**: Enables synchronization of the position and orientation of objects.
-  - **[IMAGE](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/image.md)**: Facilitates the reception of volumes reconstructed from biomedical images.
-  - **[POLYDATA](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/polydata.md)**: Supports the transmission of various types of meshes (e.g., surface models).
-
-- Integration with the UnityVolumeRendering project for volume rendering.
-- Compatibility with HoloLens 2 for mixed reality surgical applications.
-
-
-
 ### 3D Slicer in Unity (usage example)  
 
 <img src="assets/3D-Slicer-Unity.gif" width="500px">
@@ -38,6 +25,19 @@ A first example of usage for this implementation is the integration with the Uni
 - Leveraging the volumetric rendering capabilities of UnityVolumeRendering
 
 This approach enables the creation of advanced surgical support applications without needing to reimplement features that already exist in other systems.
+
+
+### Features
+
+- Reception and transmission of OpenIGTLink messages in Unity
+- Support for message types:
+  - **[TRANSFORM](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/transform.md)**: Enables synchronization of the position and orientation of objects.
+  - **[IMAGE](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/image.md)**: Facilitates the reception of volumes reconstructed from biomedical images.
+  - **[POLYDATA](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/polydata.md)**: Supports the transmission of various types of meshes (e.g., surface models).
+
+- Integration with the UnityVolumeRendering project for volume rendering.
+- Compatibility with HoloLens 2 for mixed reality surgical applications.
+
 
 ### Aknowledgements
 
