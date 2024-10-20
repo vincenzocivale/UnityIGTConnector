@@ -39,7 +39,7 @@ A first example of usage for this implementation is the integration with the Uni
 
 This approach enables the creation of advanced surgical support applications without needing to reimplement features that already exist in other systems.
 
-### Projects That Inspired This Work
+### Aknowledgements
 
 This project builds upon the following previous works and resources:
 
