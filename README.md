@@ -38,6 +38,9 @@ This project stems from the need to create advanced surgical support application
 - Facilitating collaboration between different systems and devices in the operating room
 
 ### 3D Slicer in Unity (usage example)  
+
+[Watch the demo video](./assets/3D-Slicer-Unity.mp4)
+
 A first example of usage for this implementation is the integration with the UnityVolumeRendering project in combination with the 3D Slicer software. This combination allows for:
 
 - Receiving volumes from software like 3D Slicer via OpenIGTLink

@@ -4,11 +4,9 @@ using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 using UnityVolumeRendering;
-using static ReadMessageFromServer;
 
 public class OpenIGTLinkConnect : MonoBehaviour
 {
-    private MessageTracker messageTracker;
 
     ///////// CONNECT TO IGT Server PARAMETERS /////////
     uint headerSize = 58; // Size of the header of every OpenIGTLink message
@@ -133,9 +131,7 @@ public class OpenIGTLinkConnect : MonoBehaviour
                     }
                     else if ((iHeaderInfo.MsgType).Contains("POLYDATA"))
                     {
-                        UnityEngine.Debug.Log("Received polydata message");
-                        ReadMessageFromServer.PolyDataInfo polyDataInfo = ReadMessageFromServer.ReadPolyDataInfo(iMSGbyteArray, headerSize, iHeaderInfo.ExtHeaderSize);
-                        CreateGameObjectFromPolyData(polyDataInfo);
+                        //
                     }
                     else if ((iHeaderInfo.MsgType).Contains("STRING"))
                     {
