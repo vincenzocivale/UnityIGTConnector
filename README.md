@@ -25,15 +25,6 @@ Integrating OpenIGTLink into Unity offers the following benefits:
 - Compatibility with HoloLens 2 for mixed reality surgical applications.
 
 
-This update adds more clarity about the function of each message type and their role within the system. Let me know if you'd like any further revisions!
-
-### Motivation  
-This project stems from the need to create advanced surgical support applications using HoloLens 2, leveraging features already present in other surgical support systems. Integrating OpenIGTLink into Unity allows for:
-
-- Receiving real-time data from specialized medical software like 3D Slicer
-- Visualizing this data in a mixed reality environment
-- Interacting with medical information in an intuitive and immersive way
-- Facilitating collaboration between different systems and devices in the operating room
 
 ### 3D Slicer in Unity (usage example)  
 
