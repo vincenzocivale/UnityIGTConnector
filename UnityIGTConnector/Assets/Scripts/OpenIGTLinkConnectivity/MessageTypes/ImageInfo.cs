@@ -41,14 +41,15 @@ public class ImageInfo
 
 
     // Read incoming image's information
-    public static ImageInfo ReadImageInfo(byte[] iMSGbyteArrayComplete)
+    public static ImageInfo ReadImageInfo(byte[] iMSGbyteArrayComplete, HeaderInfo headerInfo)
     {
-        HeaderInfo headerInfo = HeaderInfo.ReadHeaderInfo(iMSGbyteArrayComplete);
-
+        
         // Define the variables stored in the body of the message
         int[] bodyArrayLengths = new int[] { 2, 1, 1, 1, 1, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 2 };
 
         ImageInfo incomingImageInfo = new ImageInfo();
+
+        incomingImageInfo.HeaderInfo = headerInfo;
 
         int skipTheseBytes = (int)headerInfo.headerSize + (int)headerInfo.ExtHeaderSize;
 
@@ -143,24 +144,29 @@ public class ImageInfo
                 case 25:
                     incomingImageInfo.NumPixSVZ = BitConverter.ToUInt16(sectionByteArray, 0);
                     break;
-                case 26:
-                    incomingImageInfo.OffsetBeforeImageContent = BitConverter.ToInt32(sectionByteArray, 0);
-
-                    // Salvataggio imageData
-                    incomingImageInfo.ImageData = new byte[incomingImageInfo.NumPixSVX * incomingImageInfo.NumPixSVY * incomingImageInfo.NumPixSVZ * incomingImageInfo.GetBytesPerScalar()];
-                    int bytesToCopy = incomingImageInfo.NumPixSVX * incomingImageInfo.NumPixSVY * incomingImageInfo.NumPixSVZ * incomingImageInfo.GetBytesPerScalar();
-                    Buffer.BlockCopy(iMSGbyteArrayComplete, incomingImageInfo.OffsetBeforeImageContent, incomingImageInfo.ImageData, 0, bytesToCopy);
-                    break;
                 default:
                     break;
             }
         }
 
+        incomingImageInfo.OffsetBeforeImageContent = skipTheseBytes;
+
+        int bytesPerScalar = incomingImageInfo.GetBytesPerScalar();
+        int uDimension = incomingImageInfo.NumPixSVX * incomingImageInfo.NumPixSVY * incomingImageInfo.NumPixSVZ;
+
+        byte[] imageData = new byte[uDimension * bytesPerScalar];
+        int bytesToCopy = uDimension * bytesPerScalar;
+        Buffer.BlockCopy(iMSGbyteArrayComplete, incomingImageInfo.OffsetBeforeImageContent, imageData, 0, bytesToCopy);
+
+        incomingImageInfo.ImageData = imageData;
+
         return incomingImageInfo;
     }
 
+   
+
     // Funzione per creare un VolumeRendering a partire dalle informazioni contenute in imageInfo
-    public void Create3DVolume()
+    public void Create3DVolume(byte[] iMSGbyteArrayComplete)
     {
         if (NumPixX > 0 && NumPixY > 0 && NumPixZ > 0)
         {
@@ -170,7 +176,7 @@ public class ImageInfo
                 UnityEngine.Debug.LogError("Non è possibile effettuare volume rendering per immagini con rgb");
             }
             VolumeDataset dataset = ScriptableObject.CreateInstance<VolumeDataset>();
-            ImportInternal(dataset);
+            ImportInternal(dataset, iMSGbyteArrayComplete);
 
             // Spawn the object
             if (dataset != null)
@@ -184,6 +190,19 @@ public class ImageInfo
         }
     }
 
+    public void PrintImageInfo()
+    {
+        // Crea una stringa con le informazioni
+        string info = $"Image Info:\n" +
+                      $"NumPixSVX: {NumPixSVX}\n" +
+                      $"NumPixSVY: {NumPixSVY}\n" +
+                      $"NumPixSVZ: {NumPixSVZ}\n" +
+                      $"ScalarType: {ScalarType}\n";
+
+        // Stampa la stringa nel log di Unity
+        Debug.Log(info);
+    }
+
     private async Task<VolumeDataset> ImportAsync(byte[] iMSGbyteArrayComplete)
     {
         DespawnAllDatasets();
@@ -194,11 +213,11 @@ public class ImageInfo
         }
 
         VolumeDataset dataset = ScriptableObject.CreateInstance<VolumeDataset>();
-        await Task.Run(() => ImportInternal(dataset));
+        await Task.Run(() => ImportInternal(dataset, iMSGbyteArrayComplete));
         return dataset;
     }
 
-    private void ImportInternal(VolumeDataset dataset)
+    private void ImportInternal(VolumeDataset dataset, byte[] iMSGbyteArrayComplete)
     {
         dataset.datasetName = null;
         dataset.filePath = null; // Se hai bisogno di un filePath, puoi impostarlo qui
@@ -239,7 +258,7 @@ public class ImageInfo
             7 => 4,
             10 => 4,
             11 => 8,
-            _ => throw new Exception("ScalarType non supportato")
+            _ => throw new Exception("ScalarType non supportato: " + ScalarType)
         };
     }
 
@@ -276,5 +295,112 @@ public class ImageInfo
             GameObject.Destroy(volobj.gameObject);
         }
     }
+
+    /*public static Color[] ExtractImageColors(byte[] iMSGbyteArrayComplete, ReadMessageFromServer.ImageInfo imageInfo)
+    {
+        int totalPixels = imageInfo.NumPixSVX * imageInfo.NumPixSVY * imageInfo.NumPixSVZ;
+        int numComponents = imageInfo.ImComp;
+        int bytesPerScalar = imageInfo.ScalarType switch
+        {
+            2 => 1,
+            3 => 1,
+            4 => 2,
+            5 => 2,
+            6 => 4,
+            7 => 4,
+            10 => 4,
+            11 => 8,
+            _ => throw new Exception("ScalarType non supportato")
+        };
+        int imageDataSize = totalPixels * numComponents * bytesPerScalar;
+
+        byte[] imageData = new byte[imageDataSize];
+        Buffer.BlockCopy(iMSGbyteArrayComplete, imageInfo.OffsetBeforeImageContent, imageData, 0, imageDataSize);
+
+        Color[] colors = new Color[totalPixels];
+        int index = 0;
+
+        // Calcolo delle dimensioni della sub-volume per gli indici
+        int width = imageInfo.NumPixSVX;
+        int height = imageInfo.NumPixSVY;
+        int depth = imageInfo.NumPixSVZ;
+
+        for (int z = 0; z < depth; z++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    float r = 0f, g = 0f, b = 0f, a = 1f;
+
+                    if (numComponents >= 1)
+                        r = ConvertScalarToFloat(imageData, index, bytesPerScalar, imageInfo.ScalarType);
+                    if (numComponents >= 2)
+                        g = ConvertScalarToFloat(imageData, index + bytesPerScalar, bytesPerScalar, imageInfo.ScalarType);
+                    if (numComponents >= 3)
+                        b = ConvertScalarToFloat(imageData, index + 2 * bytesPerScalar, bytesPerScalar, imageInfo.ScalarType);
+                    if (numComponents == 4)
+                        a = ConvertScalarToFloat(imageData, index + 3 * bytesPerScalar, bytesPerScalar, imageInfo.ScalarType);
+
+                    // Indice per l'array di colori considerando l'inversione dell'asse Y
+                    int flippedIndex = x + (height - 1 - y) * width + z * width * height;
+                    colors[flippedIndex] = new Color(r, g, b, a);
+
+                    index += numComponents * bytesPerScalar;
+                }
+            }
+        }
+
+
+        return colors;
+    }
+    
+     static TextureFormat DetermineTextureFormat(int scalarType, int imComp)
+    {
+        switch (scalarType)
+        {
+            case 2: // int8
+            case 3: // uint8
+                return imComp switch
+                {
+                    1 => TextureFormat.R8,
+                    2 => TextureFormat.RG16,  // RG8 non è supportato da Unity, quindi passiamo a RG16
+                    3 => TextureFormat.RGB24,
+                    4 => TextureFormat.RGBA32,
+                    _ => throw new Exception("Numero di componenti non supportato")
+                };
+            case 4:
+                return imComp switch
+                {
+                    1 => TextureFormat.R16,
+                    2 => TextureFormat.RG16,
+                    4 => TextureFormat.RGBAHalf, // RGBA16 non esiste, quindi RGBAHalf è la migliore approssimazione
+                    _ => throw new Exception("Numero di componenti non supportato")
+                };
+            case 5: // uint16
+                return imComp switch
+                {
+                    1 => TextureFormat.R16,
+                    2 => TextureFormat.RG16,
+                    4 => TextureFormat.RGBAHalf, // RGBA16 non esiste, quindi RGBAHalf è la migliore approssimazione
+                    _ => throw new Exception("Numero di componenti non supportato")
+                };
+            case 6: // int32
+            case 7: // uint32
+            case 10: // float32
+                return imComp switch
+                {
+                    1 => TextureFormat.RFloat,
+                    2 => TextureFormat.RGFloat,
+                    4 => TextureFormat.RGBAFloat,
+                    _ => throw new Exception("Numero di componenti non supportato")
+                };
+            case 11: // float64
+                     // Richiede conversione a float32 prima della creazione della texture
+                throw new Exception("float64 non supportato direttamente. Convertire a float32");
+            default:
+                throw new Exception("ScalarType non supportato");
+        }
+    }*/
 }
 

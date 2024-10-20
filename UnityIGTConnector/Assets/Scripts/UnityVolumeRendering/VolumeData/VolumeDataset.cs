@@ -328,13 +328,11 @@ namespace UnityVolumeRendering
                 texture.Apply(false, true);
             }
             progressHandler.EndStage();
-            Debug.Log("Texture generation done.");
             return texture;
         }
 
         private async Task<Texture3D> CreateGradientTextureInternalAsync(IProgressHandler progressHandler)
         {
-            Debug.Log("Async gradient generation. Hold on.");
 
             Texture3D.allowThreadedTextureCreation = true;
             TextureFormat texformat = SystemInfo.SupportsTextureFormat(TextureFormat.RGBAHalf) ? TextureFormat.RGBAHalf : TextureFormat.RGBAFloat;

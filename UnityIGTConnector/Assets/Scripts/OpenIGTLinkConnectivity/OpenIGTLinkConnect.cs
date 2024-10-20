@@ -4,6 +4,7 @@ using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 using UnityVolumeRendering;
+using static ReadMessageFromServer;
 
 public class OpenIGTLinkConnect : MonoBehaviour
 {
@@ -49,6 +50,7 @@ public class OpenIGTLinkConnect : MonoBehaviour
         // Prova a connettersi al server all'avvio
         if (OnConnectToIGTServer())
         {
+            UnityEngine.Debug.Log("Successfully connected to IGTLink Server");
             /*StartCoroutine(SendIGTInfo());*/
             StartCoroutine(ListenIGTInfo());
         }
@@ -107,9 +109,8 @@ public class OpenIGTLinkConnect : MonoBehaviour
 
             if (iMSGbyteArray.Length >= (int)headerSize)
             {
-                // Read the header of incoming messages
-                ReadMessageFromServer.HeaderInfo iHeaderInfo = ReadMessageFromServer.ReadHeaderInfo(iMSGbyteArray);
-
+                HeaderInfo iHeaderInfo = HeaderInfo.ReadHeaderInfo(iMSGbyteArray);
+              
                 // Read the body of incoming messages
                 uint BodySize = Convert.ToUInt32(iHeaderInfo.BodySize);
 
@@ -123,8 +124,12 @@ public class OpenIGTLinkConnect : MonoBehaviour
                     else if ((iHeaderInfo.MsgType).Contains("IMAGE"))
                     {
                         UnityEngine.Debug.Log("Image received");
-                        ImageImporter(iMSGbyteArray, iHeaderInfo);
-                        UnityEngine.Debug.Log("Image displayed");
+                        ImageInfo imageInfo = ImageInfo.ReadImageInfo(iMSGbyteArray, iHeaderInfo);
+                        imageInfo.PrintImageInfo();
+                        if (imageInfo != null)
+                        {
+                            imageInfo.Create3DVolume(iMSGbyteArray);
+                        }
                     }
                     else if ((iHeaderInfo.MsgType).Contains("POLYDATA"))
                     {
@@ -297,7 +302,7 @@ public class OpenIGTLinkConnect : MonoBehaviour
 
 
 
-    private void ImageImporter(byte[] iMSGbyteArray, ReadMessageFromServer.HeaderInfo iHeaderInfo)
+    private void ImageImporter(byte[] iMSGbyteArray, HeaderInfo iHeaderInfo)
     {
         // Leggi le informazioni sull'immagine
         ReadMessageFromServer.ImageInfo iImageInfo = ReadMessageFromServer.ReadImageInfo(iMSGbyteArray, headerSize, iHeaderInfo.ExtHeaderSize);
