@@ -37,7 +37,7 @@ This project stems from the need to create advanced surgical support application
 
 ### 3D Slicer in Unity (usage example)  
 
-[Watch the demo video](./assets/3D-Slicer-Unity.mp4)
+<img src="assets/3D-Slicer-Unity.gif" width="500px">
 
 A first example of usage for this implementation is the integration with the UnityVolumeRendering project in combination with the 3D Slicer software. This combination allows for:
 
