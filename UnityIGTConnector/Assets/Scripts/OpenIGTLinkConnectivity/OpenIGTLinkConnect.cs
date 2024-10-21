@@ -130,8 +130,10 @@ public class OpenIGTLinkConnect : MonoBehaviour
                     }
                     else if ((iHeaderInfo.MsgType).Contains("POLYDATA"))
                     {
+                        UnityEngine.Debug.Log("PolyData received");
                         PolyDataInfo polyDatInfo = PolyDataInfo.ReadPolyDataInfo(iMSGbyteArray, iHeaderInfo);
                         GameObject go = PolyDataInfo.GenerateMeshFromPolyData(polyDatInfo);
+                        /*ReadMessageFromServer.ReadPolyDataInfo(iMSGbyteArray, iHeaderInfo.headerSize, iHeaderInfo.ExtHeaderSize);*/
                     }
                     else if ((iHeaderInfo.MsgType).Contains("STRING"))
                     {

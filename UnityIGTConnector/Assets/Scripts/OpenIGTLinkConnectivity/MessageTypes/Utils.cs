@@ -7,21 +7,34 @@ public static class ByteReader
 {
     public static UInt16 ReadUInt16(byte[] data, int offset)
     {
-        if (BitConverter.IsLittleEndian) Array.Reverse(data, offset, 2);
-        return BitConverter.ToUInt16(data, offset);
+        byte[] buffer = new byte[2];
+        Array.Copy(data, offset, buffer, 0, 2);
+
+        if (BitConverter.IsLittleEndian) Array.Reverse(buffer);
+
+        return BitConverter.ToUInt16(buffer, 0);
     }
 
     public static UInt32 ReadUInt32(byte[] data, int offset)
     {
-        if (BitConverter.IsLittleEndian) Array.Reverse(data, offset, 4);
-        return BitConverter.ToUInt32(data, offset);
+        byte[] buffer = new byte[4];
+        Array.Copy(data, offset, buffer, 0, 4);
+
+        if (BitConverter.IsLittleEndian) Array.Reverse(buffer);
+
+        return BitConverter.ToUInt32(buffer, 0);
     }
 
     public static float ReadFloat(byte[] data, int offset)
     {
-        if (BitConverter.IsLittleEndian) Array.Reverse(data, offset, 4);
-        return BitConverter.ToSingle(data, offset);
+        byte[] buffer = new byte[4];
+        Array.Copy(data, offset, buffer, 0, 4);
+
+        if (BitConverter.IsLittleEndian) Array.Reverse(buffer);
+
+        return BitConverter.ToSingle(buffer, 0);
     }
+
 
     public static uint[] ReadUIntArray(byte[] data, uint size, ref int offset)
     {

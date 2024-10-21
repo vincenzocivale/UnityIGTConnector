@@ -1,7 +1,7 @@
 
 
 ### **UnityIGTConnector**  
-This repository contains the implementation of the [OpenIGTLink](https://openigtlink.org/) communication protocol within Unity. This integration enables the reception and transmission of [HEADER](https://openigtlink.org/developers/spec), [TRANSFORM](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/transform.md), [IMAGE](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/image.md), [POLYDATA](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/polydata.md), and TEXT messages within the Unity scene, unlocking new possibilities for mixed reality applications in the medical field.
+This repository contains the implementation of the [OpenIGTLink](https://openigtlink.org/) communication protocol within Unity. This integration enables the reception and transmission of [HEADER](https://openigtlink.org/developers/spec), [TRANSFORM](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/transform.md), [IMAGE](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/image.md), [POLYDATA](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/polydata.md), and [STRING](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/string.md) messages within the Unity scene, unlocking new possibilities for mixed reality applications in the medical field.
 
 ### Overview  
 [OpenIGTLink](https://openigtlink.org/) is an open-source network communication protocol specifically designed for image-guided interventions. Its goal is to provide unified, real-time communication (URTC) in operating rooms for image-guided surgeries, where imaging devices, sensors, surgical robots, and computers from various manufacturers can work cooperatively.
@@ -22,7 +22,7 @@ A first example of usage for this implementation is the integration with the Uni
 - Receiving volumes from software like 3D Slicer via OpenIGTLink
 - Perform effective volume segmentation using machine learning models trained in Python
 - Visualizing these volumes within the Unity scene
-- Leveraging the volumetric rendering capabilities of UnityVolumeRendering
+- Leveraging the volumetric rendering capabilities of [UnityVolumeRendering](https://github.com/mlavik1/UnityVolumeRendering.git)
 
 This approach enables the creation of advanced surgical support applications without needing to reimplement features that already exist in other systems.
 
@@ -35,7 +35,7 @@ This approach enables the creation of advanced surgical support applications wit
   - **[IMAGE](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/image.md)**: Facilitates the reception of volumes reconstructed from biomedical images.
   - **[POLYDATA](https://github.com/openigtlink/OpenIGTLink/blob/master/Documents/Protocol/polydata.md)**: Supports the transmission of various types of meshes (e.g., surface models).
 
-- Integration with the UnityVolumeRendering project for volume rendering.
+- Integration with the [UnityVolumeRendering](https://github.com/mlavik1/UnityVolumeRendering.git) project for volume rendering.
 - Compatibility with HoloLens 2 for mixed reality surgical applications.
 
 
