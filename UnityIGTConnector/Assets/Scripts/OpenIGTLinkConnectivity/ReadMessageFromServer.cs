@@ -280,7 +280,7 @@ public class ReadMessageFromServer
         Buffer.BlockCopy(messageBytes, offset + 4, stringInfo.data, 0, stringInfo.length);
 
 
-        // Reference: https://www.iana.org/assignments/character-sets/character-sets.xhtml
+        
         switch (stringInfo.encoding)
         {
             case 1:

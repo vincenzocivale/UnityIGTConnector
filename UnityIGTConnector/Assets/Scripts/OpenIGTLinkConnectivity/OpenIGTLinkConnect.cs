@@ -123,7 +123,6 @@ public class OpenIGTLinkConnect : MonoBehaviour
                     {
                         UnityEngine.Debug.Log("Image received");
                         ImageInfo imageInfo = ImageInfo.ReadImageInfo(iMSGbyteArray, iHeaderInfo);
-                        imageInfo.PrintImageInfo();
                         if (imageInfo != null)
                         {
                             imageInfo.Create3DVolume(iMSGbyteArray);
@@ -131,7 +130,8 @@ public class OpenIGTLinkConnect : MonoBehaviour
                     }
                     else if ((iHeaderInfo.MsgType).Contains("POLYDATA"))
                     {
-                        //
+                        PolyDataInfo polyDatInfo = PolyDataInfo.ReadPolyDataInfo(iMSGbyteArray, iHeaderInfo);
+                        GameObject go = PolyDataInfo.GenerateMeshFromPolyData(polyDatInfo);
                     }
                     else if ((iHeaderInfo.MsgType).Contains("STRING"))
                     {
@@ -331,107 +331,5 @@ public class OpenIGTLinkConnect : MonoBehaviour
         }
     }
 
-    public static GameObject CreateGameObjectFromPolyData(ReadMessageFromServer.PolyDataInfo polyDataInfo)
-    {
-        GameObject newObject = new GameObject("PolyDataObject");
-        Mesh mesh = new Mesh();
-
-        if (polyDataInfo.NumPoints == 0 || polyDataInfo.Points == null)
-        {
-            UnityEngine.Debug.LogError("No points found in PolyDataInfo.");
-            return null;
-        }
-
-        // Imposta i vertici del mesh
-        Vector3[] vertices = new Vector3[polyDataInfo.NumPoints];
-        for (int i = 0; i < polyDataInfo.NumPoints; i++)
-        {
-            vertices[i] = polyDataInfo.Points[i];
-        }
-        mesh.vertices = vertices;
-
-        // Imposta i triangoli del mesh
-        if (polyDataInfo.NumPolygons == 0 || polyDataInfo.Polygons == null)
-        {
-            UnityEngine.Debug.LogError("No polygons found in PolyDataInfo.");
-            return null;
-        }
-
-        List<int> triangles = new List<int>();
-        uint polygonIndex = 0;
-
-        while (polygonIndex < polyDataInfo.Polygons.Length)
-        {
-            if (polygonIndex >= polyDataInfo.Polygons.Length)
-            {
-                UnityEngine.Debug.LogError($"polygonIndex {polygonIndex} is out of bounds for polygons array with length {polyDataInfo.Polygons.Length}.");
-                break;
-            }
-
-            uint verticesCount = polyDataInfo.Polygons[polygonIndex];
-            polygonIndex++;
-
-            if (polygonIndex + verticesCount > polyDataInfo.Polygons.Length)
-            {
-                UnityEngine.Debug.LogError("Invalid polygon data encountered.");
-                break;
-            }
-
-            for (int i = 0; i < verticesCount - 2; i++)
-            {
-                triangles.Add((int)polyDataInfo.Polygons[polygonIndex]);
-                triangles.Add((int)polyDataInfo.Polygons[polygonIndex + i + 1]);
-                triangles.Add((int)polyDataInfo.Polygons[polygonIndex + i + 2]);
-            }
-
-            polygonIndex += verticesCount;
-        }
-        mesh.triangles = triangles.ToArray();
-        mesh.RecalculateNormals();
-
-        // Cerca un attributo che rappresenti i colori
-        Color[] colors = null;
-        for (int i = 0; i < polyDataInfo.NumAttributes; i++)
-        {
-            byte attributeType = polyDataInfo.AttributeHeader.GetAttributeType(i);
-            byte numComponents = polyDataInfo.AttributeHeader.GetNumberOfComponents(i);
-
-            // Verifica se l'attributo corrente è un colore RGB o RGBA
-            if ((attributeType == 10 || attributeType == 11) && (numComponents == 3 || numComponents == 4))
-            {
-                colors = new Color[polyDataInfo.NumPoints];
-                for (int j = 0; j < polyDataInfo.NumPoints; j++)
-                {
-                    float r = polyDataInfo.AttributeData.Data[i][j * numComponents];
-                    float g = polyDataInfo.AttributeData.Data[i][j * numComponents + 1];
-                    float b = polyDataInfo.AttributeData.Data[i][j * numComponents + 2];
-                    float a = (numComponents == 4) ? polyDataInfo.AttributeData.Data[i][j * numComponents + 3] : 1.0f;
-
-                    colors[j] = new Color(r, g, b, a);
-                }
-                break; // Esci dal loop una volta trovato l'attributo del colore
-            }
-        }
-
-        if (colors != null)
-        {
-            mesh.colors = colors;
-        }
-        else
-        {
-            UnityEngine.Debug.LogWarning("No color attributes found. Defaulting to white.");
-        }
-
-
-
-        MeshRenderer meshRenderer = newObject.AddComponent<MeshRenderer>();
-        MeshFilter meshFilter = newObject.AddComponent<MeshFilter>();
-
-        meshFilter.mesh = mesh;
-
-        // Imposta il materiale
-        meshRenderer.material = new Material(Shader.Find("Standard"));
-
-        return newObject;
-    }
+    
 }
