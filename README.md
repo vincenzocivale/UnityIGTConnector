@@ -15,7 +15,8 @@ Integrating OpenIGTLink into Unity offers the following benefits:
 - **Interoperability**: Facilitates communication between different platforms and devices used in medical environments.
 - **Advanced Visualization**: Leverages Unity's graphical capabilities to represent complex medical data in a mixed reality environment.
 
-### 3D Slicer in Unity (usage example)  
+## Examples
+### 3D Slicer in Unity 
 
 <img src="assets/3D-Slicer-Unity.gif" width="500px">
 
