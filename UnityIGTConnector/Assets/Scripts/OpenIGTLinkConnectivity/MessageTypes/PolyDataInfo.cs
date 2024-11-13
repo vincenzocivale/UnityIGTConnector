@@ -19,10 +19,10 @@ public class PolyDataInfo
     public uint NumAttributes { get; set; }
 
     public Vector3[] Points { get; set; }
-    public Struct[] Vertices { get; set; }
-    public Struct[] Lines { get; set; }
-    public Struct[] Polygons { get; set; }
-    public Struct[] TriangleStrips { get; set; }
+    public PointIndices[] Vertices { get; set; }
+    public PointIndices[] Lines { get; set; }
+    public PointIndices[] Polygons { get; set; }
+    public PointIndices[] TriangleStrips { get; set; }
     public Attributes Attributes { get; set; }
 
     /// <summary>
@@ -35,7 +35,7 @@ public class PolyDataInfo
             _headerInfo = headerInfo
         };
 
-        int offset = (int)(headerInfo.headerSize + headerInfo.ExtHeaderSize);
+        int offset = (int)(polyDataInfo._headerInfo.headerSize + polyDataInfo._headerInfo.ExtHeaderSize);
 
         // Read the main fields
         polyDataInfo.ReadCoreFields(messageBytes, ref offset);
@@ -44,10 +44,10 @@ public class PolyDataInfo
         polyDataInfo.Points = polyDataInfo.ReadPoints(messageBytes, ref offset);
 
         // Read lists (Vertices, Lines, Polygons, TriangleStrips)
-        polyDataInfo.Vertices = Struct.ReadStructArray(messageBytes, polyDataInfo.NumVertices, ref offset);
-        polyDataInfo.Lines = Struct.ReadStructArray(messageBytes, polyDataInfo.NumLines, ref offset);
-        polyDataInfo.Polygons = Struct.ReadStructArray(messageBytes, polyDataInfo.NumPolygons, ref offset);
-        polyDataInfo.TriangleStrips = Struct.ReadStructArray(messageBytes, polyDataInfo.NumTriangleStrips, ref offset);
+        polyDataInfo.Vertices = PointIndices.ReadPointIndicesArray(messageBytes, polyDataInfo.NumVertices, ref offset);
+        polyDataInfo.Lines = PointIndices.ReadPointIndicesArray(messageBytes, polyDataInfo.NumLines, ref offset);
+        polyDataInfo.Polygons = PointIndices.ReadPointIndicesArray(messageBytes, polyDataInfo.NumPolygons, ref offset);
+        polyDataInfo.TriangleStrips = PointIndices.ReadPointIndicesArray(messageBytes, polyDataInfo.NumTriangleStrips, ref offset);
 
         // Read attribute data
         polyDataInfo.Attributes = Attributes.ReadFromBytes(messageBytes, offset, polyDataInfo.NumAttributes);
@@ -93,6 +93,8 @@ public class PolyDataInfo
     {
         GameObject newObject = new GameObject("PolyDataObject");
         Mesh mesh = new Mesh();
+        List<int> triangles;
+
 
         if (!polyDataInfo.HasValidPoints())
         {
@@ -101,14 +103,25 @@ public class PolyDataInfo
         }
 
         mesh.vertices = polyDataInfo.Points;
+        UnityEngine.Debug.Log("points: " + polyDataInfo.Points.Length);
 
-        if (!polyDataInfo.HasValidPolygons())
+        if (polyDataInfo.HasValidPolygons())
         {
-            Debug.LogError("No valid polygons found in PolyDataInfo.");
+            triangles = TriangulatePolygons(polyDataInfo.Polygons);
+        }
+
+        else
+        {
+            if (polyDataInfo.HasValidTriangleStrips())
+            {
+                triangles = ConvertTriangleStripToTriangleList(polyDataInfo.TriangleStrips);
+            }
+
             return null;
         }
 
-        List<int> triangles = polyDataInfo.GenerateTriangles();
+        
+        UnityEngine.Debug.Log("triangles: " + triangles.Count);
         mesh.triangles = triangles.ToArray();
 
         mesh.RecalculateNormals();
@@ -117,33 +130,72 @@ public class PolyDataInfo
         return newObject;
     }
 
-    private bool HasValidPoints() => NumPoints > 0 && Points != null;
+    public static List<int> ConvertTriangleStripToTriangleList(PointIndices[] triangleStrips)
+    {
+        List<int> triangleList = new List<int>();
 
-    private bool HasValidPolygons() => NumPolygons > 0 && Polygons != null;
+        foreach (var strip in triangleStrips)
+        {
+            bool flip = false;
+            // rappresenta la lista degli indici dei punti di ciascun strip
+            List<uint> indices = strip.PointIndex;
 
-    private List<int> GenerateTriangles()
+            for (int i = 0; i < indices.Count - 2; i++)
+            {
+                int v0 = (int)indices[i];
+                int v1 = (int)indices[i + 1];
+                int v2 = (int)indices[i + 2];
+
+                // Aggiungi i triangoli alternando l'ordine dei vertici
+                if (flip)
+                {
+                    triangleList.Add(v0);
+                    triangleList.Add(v2);
+                    triangleList.Add(v1);
+                }
+                else
+                {
+                    triangleList.Add(v0);
+                    triangleList.Add(v1);
+                    triangleList.Add(v2);
+                }
+
+                flip = !flip; // Inverti l'ordine per il triangolo successivo
+
+            }
+        }
+
+        return triangleList;
+    }
+
+    private static List<int> TriangulatePolygons(PointIndices[] polygons)
     {
         List<int> triangles = new List<int>();
 
-        foreach (var polygon in Polygons)
+        // Un poligono con n vertici può essere suddiviso in (n - 2) triangoli
+        foreach(var polygon in polygons)
         {
-            if (polygon.NumberOfIndices < 3)
-            {
-                Debug.LogWarning("Skipping invalid polygon with less than 3 vertices.");
-                continue;
-            }
 
-            // Create triangles using triangle fan pattern
-            for (int i = 0; i < polygon.NumberOfIndices - 2; i++)
+            if (polygon.PointIndex.Count >= 3)
             {
-                triangles.Add((int)polygon.PointIndices[0]);
-                triangles.Add((int)polygon.PointIndices[i + 1]);
-                triangles.Add((int)polygon.PointIndices[i + 2]);
+                for (int i = 1; i < polygon.PointIndex.Count - 1; i++)
+                {
+                    triangles.Add((int)polygon.PointIndex[0]);    // Punto centrale (il primo)
+                    triangles.Add((int)polygon.PointIndex[i]);    // Punto i
+                    triangles.Add((int)polygon.PointIndex[i + 1]); // Punto i+1
+                }
             }
         }
 
         return triangles;
     }
+
+
+    private bool HasValidPoints() => NumPoints > 0 && Points != null;
+
+    private bool HasValidPolygons() => NumPolygons > 0 && Polygons != null;
+
+    private bool HasValidTriangleStrips() => NumTriangleStrips > 0 && TriangleStrips != null;
 
     private static void SetupMeshRenderer(GameObject newObject, Mesh mesh)
     {
@@ -155,14 +207,14 @@ public class PolyDataInfo
     }
 }
 
-public class Struct
+public class PointIndices
 {
     public uint NumberOfIndices { get; set; }
-    public List<uint> PointIndices { get; set; } = new List<uint>();
+    public List<uint> PointIndex { get; set; } = new List<uint>();
 
-    public static Struct FromByteArray(byte[] data, ref int offset)
+    public static PointIndices FromByteArray(byte[] data, ref int offset)
     {
-        Struct structure = new Struct
+        PointIndices structure = new PointIndices
         {
             NumberOfIndices = ByteReader.ReadUInt32(data, offset)
         };
@@ -170,16 +222,16 @@ public class Struct
 
         for (uint i = 0; i < structure.NumberOfIndices; i++)
         {
-            structure.PointIndices.Add(ByteReader.ReadUInt32(data, offset));
+            structure.PointIndex.Add(ByteReader.ReadUInt32(data, offset));
             offset += 4;
         }
 
         return structure;
     }
 
-    public static Struct[] ReadStructArray(byte[] data, uint numStructs, ref int offset)
+    public static PointIndices[] ReadPointIndicesArray(byte[] data, uint numStructs, ref int offset)
     {
-        Struct[] structs = new Struct[numStructs];
+        PointIndices[] structs = new PointIndices[numStructs];
 
         for (int i = 0; i < numStructs; i++)
         {
